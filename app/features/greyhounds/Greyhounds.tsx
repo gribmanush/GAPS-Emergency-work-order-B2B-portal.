@@ -1,15 +1,18 @@
 /**
- * PLACEHOLDER — awaiting Arjun's implementation (Jira TJ-35 Greyhounds).
- * Replace this file with his real version at this exact path: app/features/greyhounds/Greyhounds.tsx.
- * See CONTRIBUTING.md / CONTRIBUTION_INDEX.md at the repo root.
+ * Team JAM contribution: ARJUN SINGH
+ * Greyhound directory and status records.
  */
 "use client";
 
-import { PageHead } from "../../shared/PageHead";
+import { Directory } from "../../shared/Directory";
 
-export function Greyhounds({}: { rows: string[][]; readOnly: boolean; setModal: (m: string) => void }) {
-  return <>
-    <PageHead title="Greyhound directory" subtitle="Placeholder — Arjun's real greyhound directory (TJ-35) replaces this screen." />
-    <div className="panel"><p>Stand-in screen.</p></div>
-  </>;
+export function Greyhounds({ rows, readOnly, setModal }: { rows: string[][]; readOnly: boolean; setModal: (m: string) => void }) {
+  return <Directory
+    title="Greyhound directory"
+    subtitle="Verified animal records used across emergency incidents"
+    heads={["GAP reference", "Pet name", "Racing name", "Microchip", "Status", "Health alerts"]}
+    rows={rows}
+    action={!readOnly ? "Add greyhound" : undefined}
+    onAction={() => setModal("greyhound")}
+  />;
 }
