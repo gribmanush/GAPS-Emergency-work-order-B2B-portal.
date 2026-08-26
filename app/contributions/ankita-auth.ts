@@ -1,8 +1,12 @@
 /**
- * PLACEHOLDER — awaiting Ankita's implementation (Jira TJ-26 Sign in/Sign up, TJ-27 Forgot Password).
- * Replace this file with her real version at this exact path: app/contributions/ankita-auth.ts.
- * See CONTRIBUTING.md / CONTRIBUTION_INDEX.md at the repo root.
+ * Team JAM contribution target: ANKITA BASNET
+ * Jira: TJ-26 Sign in and Sign up page; TJ-27 Forgot Password page.
+ *
+ * Evidence rule: Ankita should review, explain, test and commit this file herself.
+ * The file's presence alone must not be represented as proof of authorship.
  */
+export const ANKITA_JIRA_ITEMS = ["TJ-26", "TJ-27"] as const;
+
 export function validateDemoCredentials(
   email: string,
   password: string,
@@ -16,5 +20,5 @@ export function validateDemoCredentials(
 }
 
 export function passwordResetConfirmation() {
-  return "Placeholder — Ankita's real password reset flow (TJ-27) replaces this message.";
+  return "If that address belongs to an account, reset instructions have been generated for this demonstration.";
 }
