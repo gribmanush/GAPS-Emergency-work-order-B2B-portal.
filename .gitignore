@@ -34,24 +34,9 @@ yarn-error.log*
 # vercel
 .vercel
 
-
-
 # typescript
 next-env.d.ts
-*.tsbuildinfo
 /dist/
 /.wrangler/
 /outputs/
 /work/
-
-# editors / IDEs
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
-
-# OS
-Thumbs.db
-ehthumbs.db
-Desktop.ini

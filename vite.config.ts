@@ -1,24 +1,13 @@
-import { existsSync, readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
 import vinext from "vinext";
 import { defineConfig } from "vite";
-import { sites } from "./build/sites-vite-plugin";
 
 const SITE_CREATOR_PLACEHOLDER_DATABASE_ID =
   "00000000-0000-4000-8000-000000000000";
 
-// .openai/hosting.json is an optional, control-plane-provided file. Default
-// to no D1/R2 bindings when it isn't present (e.g. local checkouts).
-const hostingConfigPath = fileURLToPath(
-  new URL("./.openai/hosting.json", import.meta.url)
-);
-const hostingConfig: { d1?: string | null; r2?: string | null } = existsSync(
-  hostingConfigPath
-)
-  ? JSON.parse(readFileSync(hostingConfigPath, "utf-8"))
-  : { d1: null, r2: null };
-
-const { d1, r2 } = hostingConfig;
+// No database or object storage is used by this app (see db/schema.ts).
+// Set these if the app ever needs a real Cloudflare D1 / R2 binding.
+const d1: string | null = null;
+const r2: string | null = null;
 
 // macOS Seatbelt blocks FSEvents, so Codex previews need polling for HMR.
 const isCodexSeatbeltSandbox = process.env.CODEX_SANDBOX === "seatbelt";
@@ -61,7 +50,6 @@ export default defineConfig(async () => {
       : undefined,
     plugins: [
       vinext(),
-      sites(),
       cloudflare({
         viteEnvironment: { name: "rsc", childEnvironments: ["ssr"] },
         config: localBindingConfig,

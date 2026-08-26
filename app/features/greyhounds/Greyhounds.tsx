@@ -1,15 +1,15 @@
 /**
- * PLACEHOLDER — pending Muhaimin's PR (TJ-35 Greyhounds).
- * Real implementation lives on his branch. This stub only exists so the app builds
- * and stays testable; it is not the real greyhound directory.
+ * PLACEHOLDER — awaiting Arjun's implementation (Jira TJ-35 Greyhounds).
+ * Replace this file with his real version at this exact path: app/features/greyhounds/Greyhounds.tsx.
+ * See CONTRIBUTING.md / CONTRIBUTION_INDEX.md at the repo root.
  */
 "use client";
 
 import { PageHead } from "../../shared/PageHead";
 
-export function Greyhounds({ rows, readOnly, setModal }: { rows: string[][]; readOnly: boolean; setModal: (m: string) => void }) {
+export function Greyhounds({}: { rows: string[][]; readOnly: boolean; setModal: (m: string) => void }) {
   return <>
-    <PageHead title="Greyhound directory" subtitle="Placeholder — pending Muhaimin's PR." />
-    <div className="notice-banner"><b>Greyhound directory not yet merged</b><span>Muhaimin&rsquo;s greyhound directory hasn&rsquo;t landed yet.</span></div>
+    <PageHead title="Greyhound directory" subtitle="Placeholder — Arjun's real greyhound directory (TJ-35) replaces this screen." />
+    <div className="panel"><p>Stand-in screen.</p></div>
   </>;
 }

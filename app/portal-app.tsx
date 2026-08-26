@@ -25,7 +25,7 @@ import { Settings } from "./features/misc/Settings";
 import { Help } from "./features/misc/Help";
 import { validateDemoCredentials } from "./contributions/ankita-auth";
 import { createEmergencyWorkOrder, createTaxInvoice } from "./contributions/jubayer-workflows";
-import { createGreyhoundRecord, greyhoundDirectorySeed } from "./contributions/muhaiminul-greyhounds";
+import { createGreyhoundRecord, greyhoundDirectorySeed } from "./contributions/arjun-greyhounds";
 
 export default function PortalApp() {
   const [session, setSession] = useState<{ email: string; role: Role; name: string } | null>(null);
