@@ -163,7 +163,7 @@ const accessibleSelectedOrder =
       </header>
       <main>
         <div className="crumb">GAP Emergency Portal <span>/</span> {nav.find(x => x[0] === route)?.[2]}</div>
-        {route === "dashboard" && <Dashboard role={session.role} orders={orders} invoices={invoices} setRoute={setRoute} setModal={setModal} />}
+        {route === "dashboard" && <Dashboard role={session.role} orders={accessibleOrders} invoices={invoices} setRoute={setRoute} setModal={setModal} />}
         {route === "incidents" && <Incidents rows={incidentRows} readOnly={isReadOnly} setModal={setModal} />}
         {route === "work-orders" && !selectedOrder && <WorkOrders orders={orders} search={search} role={session.role} setSelected={setSelectedOrder} setModal={setModal} />}
         {route === "work-orders" && selectedOrder && <OrderDetail order={selectedOrder} role={session.role} back={() => setSelectedOrder(null)} transition={transition} setModal={setModal} />}
