@@ -5,7 +5,63 @@ export type WorkOrder = {
   status: string; due: string; limit: number; service: string; updated: string; notes: string;
 };
 
-export type Invoice = { id: string; workOrder: string; practice: string; amount: number; status: string; version: number; date: string };
+export type InvoiceStatus =
+  | "Submitted"
+  | "Under Review"
+  | "Approved — Ready for export"
+  | "Rejected"
+  | "Exported";
+
+export type InvoiceLineItem = {
+  description: string;
+  quantity: number;
+  unitPrice: number;
+  gstRate: number;
+  netAmount: number;
+  gstAmount: number;
+  grossAmount: number;
+};
+
+export type Invoice = {
+  id: string;
+  workOrder: string;
+  practice: string;
+  supplierId: string;
+  invoiceNumber: string;
+  invoiceDate: string;
+  dueDate: string;
+  currency: "AUD";
+  subtotal: number;
+  gst: number;
+  amount: number;
+  status: InvoiceStatus;
+  version: number;
+  date: string;
+  lineItems: InvoiceLineItem[];
+  attachmentName?: string;
+  submittedBy: string;
+  submittedAt: string;
+  reviewedBy?: string;
+  reviewedAt?: string;
+  reviewComment?: string;
+  exportedBy?: string;
+  exportedAt?: string;
+  exportReference?: string;
+};
+
+export type FinanceExportFormat = "json" | "csv";
+
+export type FinanceExportRecord = {
+  id: string;
+  invoiceId: string;
+  invoiceVersion: number;
+  format: FinanceExportFormat;
+  externalReference: string;
+  fileName: string;
+  createdAt: string;
+  createdBy: string;
+  status: "Generated";
+};
 export type Notice = { id: number; text: string; time: string; read: boolean };
 export type Audit = { id: number; time: string; user: string; role: string; action: string; record: string };
 

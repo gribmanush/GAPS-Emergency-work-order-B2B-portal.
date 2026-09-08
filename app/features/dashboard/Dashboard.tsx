@@ -12,7 +12,7 @@ export function Dashboard({ role, orders, invoices, setRoute, setModal }: { role
   const cards = buildDashboardMetrics(role, orders, invoices).map(([label, value, target, format]) => [label, format === "currency" ? money(Number(value)) : value, target]);
   return <>
     <PageHead eyebrow="OPERATIONS OVERVIEW" title={`Good morning, ${role.split(" ")[0]}`} subtitle="Here is the current emergency-care position across the network." action={role !== "Finance Approver" && role !== "GRNSW Auditor" ? "Create work order" : undefined} onAction={() => setModal("work-order")} />
-    <div className="notice-banner"><b>Coupa deferred for this build</b><span>Approved invoices are held securely at “Coupa pending” until the integration is enabled.</span></div>
+    <div className="notice-banner"><b>Finance export enabled</b><span>Approved invoices can generate an audited Coupa-ready JSON or CSV output. No live Coupa API is connected.</span></div>
     <div className="metric-grid">{cards.map(([label, value, target], i) => <button className="metric" key={String(label)} onClick={() => setRoute(String(target))}><span className={`metric-icon m${i}`}>{["↗", "◷", "✚", "!"][i]}</span><small>{label}</small><strong>{value}</strong><em>View details →</em></button>)}</div>
     <div className="dash-grid">
       <section className="panel wide">

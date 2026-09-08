@@ -5,8 +5,8 @@
  */
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
-import { Role, WorkOrder, Invoice, Notice, Audit, roles, nav, restricted, accounts } from "./shared/types";
+import { FormEvent, useEffect, useRef, useState } from "react";
+import { Role, WorkOrder, Invoice, InvoiceStatus, FinanceExportFormat, Notice, Audit, roles, nav, restricted, accounts } from "./shared/types";
 import { seedOrders, seedInvoices, seedIncidents, seedPractices } from "./shared/seed-data";
 import { Modal } from "./shared/Modal";
 import { Auth } from "./features/auth/Auth";
@@ -26,6 +26,10 @@ import { Help } from "./features/misc/Help";
 import { validateDemoCredentials } from "./contributions/ankita-auth";
 import { createEmergencyWorkOrder, createTaxInvoice } from "./contributions/jubayer-workflows";
 import { createGreyhoundRecord, greyhoundDirectorySeed } from "./contributions/arjun-greyhounds";
+import { createInvoiceRepository, InvoiceRepository } from "./features/invoices/invoice-repository";
+import { isFirebaseConfigured } from "./lib/firebase";
+import { assertFinanceReviewer, assertInvoiceTransition, serializeFinanceExport, validateInvoiceSubmission } from "./features/invoices/invoice-workflow";
+import { downloadInvoiceExport } from "./features/invoices/invoice-export";
 
 export default function PortalApp() {
   const [session, setSession] = useState<{ email: string; role: Role; name: string } | null>(null);
@@ -52,13 +56,27 @@ export default function PortalApp() {
   const [modal, setModal] = useState<string | null>(null);
   const [toast, setToast] = useState("");
   const [collapsed, setCollapsed] = useState(false);
+  const [invoicePersistence, setInvoicePersistence] = useState<"firestore" | "demo" | "connecting" | "error">(isFirebaseConfigured ? "connecting" : "demo");
+  const [busyInvoiceId, setBusyInvoiceId] = useState<string | null>(null);
+  const invoiceRepository = useRef<InvoiceRepository | null>(null);
 
   useEffect(() => {
     const saved = localStorage.getItem("gap-portal-state");
-    if (saved) { try { const p = JSON.parse(saved); setOrders(p.orders || seedOrders); setInvoices(p.invoices || seedInvoices); setIncidentRows(p.incidentRows || seedIncidents); setGreyhoundRows(p.greyhoundRows || greyhoundDirectorySeed); setPracticeRows(p.practiceRows || seedPractices); setNotices(p.notices || []); setAudits(p.audits || []); } catch { } }
+    // Hydrate the original prototype's browser-local modules after the client mounts.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (saved) { try { const p = JSON.parse(saved); const savedOrders: WorkOrder[] = p.orders || []; setOrders([...seedOrders.filter(seed => !savedOrders.some(order => order.id === seed.id)), ...savedOrders]); if (Array.isArray(p.invoices) && p.invoices.every((invoice: Invoice) => invoice.invoiceNumber && invoice.lineItems)) setInvoices(p.invoices); setIncidentRows(p.incidentRows || seedIncidents); setGreyhoundRows(p.greyhoundRows || greyhoundDirectorySeed); setPracticeRows(p.practiceRows || seedPractices); setNotices(p.notices || []); setAudits(p.audits || []); } catch { } }
     const remembered = localStorage.getItem("gap-session"); if (remembered) { try { setSession(JSON.parse(remembered)); setScreen("app"); } catch { } }
   }, []);
-  useEffect(() => { if (screen === "app") localStorage.setItem("gap-portal-state", JSON.stringify({ orders, invoices, incidentRows, greyhoundRows, practiceRows, notices, audits })); }, [orders, invoices, incidentRows, greyhoundRows, practiceRows, notices, audits, screen]);
+  useEffect(() => {
+    const repository = createInvoiceRepository();
+    if (!repository) return;
+    invoiceRepository.current = repository;
+    return repository.subscribe(
+      next => { setInvoices(next); setInvoicePersistence("firestore"); },
+      message => { setInvoicePersistence("error"); setToast(message); },
+    );
+  }, []);
+  useEffect(() => { if (screen === "app") localStorage.setItem("gap-portal-state", JSON.stringify({ orders, ...(invoicePersistence === "demo" ? { invoices } : {}), incidentRows, greyhoundRows, practiceRows, notices, audits })); }, [orders, invoices, incidentRows, greyhoundRows, practiceRows, notices, audits, screen, invoicePersistence]);
   useEffect(() => { if (toast) { const t = setTimeout(() => setToast(""), 3200); return () => clearTimeout(t); } }, [toast]);
 
   const log = (action: string, record: string) => setAudits(a => [{ id: Date.now(), time: new Date().toLocaleString("en-AU"), user: session?.name || "Demo user", role: session?.role || "System", action, record }, ...a]);
@@ -74,8 +92,69 @@ export default function PortalApp() {
   }
   function quickLogin(email: string) { const s = { email, ...accounts[email] }; setSession(s); setScreen("app"); setRoute("dashboard"); setToast(`Signed in as ${s.role}`); }
   function logout() { localStorage.removeItem("gap-session"); setSession(null); setScreen("login"); setToast("Signed out securely"); }
-  function changeRole(role: Role) { if (!session) return; setSession({ ...session, role }); setRoute("dashboard"); setToast(`Prototype role changed to ${role}`); }
+  function changeRole(role: Role) {
+    if (!session) return;
+    const account = Object.entries(accounts).find(([, value]) => value.role === role);
+    setSession(account ? { email: account[0], ...account[1] } : { ...session, role });
+    setRoute("dashboard");
+    setToast(`Prototype role changed to ${role}`);
+  }
   function transition(order: WorkOrder, status: string) { setOrders(os => os.map(o => o.id === order.id ? { ...o, status, updated: "Just now" } : o)); setSelectedOrder({ ...order, status, updated: "Just now" }); log(`Status changed to ${status}`, order.id); notify(`${order.id} is now ${status}`); setToast(`${order.id} updated`); }
+
+  async function submitInvoice(data: Record<string, FormDataEntryValue>) {
+    if (!session || session.role !== "Veterinary Practice") throw new Error("Sign in as a veterinary practice to submit an invoice.");
+    const next = createTaxInvoice({ ...data, submittedBy: session.name }, Date.now()) as Invoice;
+    const errors = validateInvoiceSubmission(next, orders.find(order => order.id === next.workOrder), invoices);
+    if (errors.length) { setToast(errors[0]); throw new Error(errors[0]); }
+    setBusyInvoiceId(next.id);
+    try {
+      if (invoiceRepository.current) await invoiceRepository.current.submit(next, session);
+      else setInvoices(current => [next, ...current]);
+      log("Submitted invoice", next.id);
+      notify(`${next.id} was submitted for finance review`);
+      setModal(null);
+      setToast(`${next.id} submitted for GAP finance review`);
+    } finally { setBusyInvoiceId(null); }
+  }
+
+  async function reviewInvoice(invoice: Invoice, status: Extract<InvoiceStatus, "Under Review" | "Approved — Ready for export" | "Rejected">, comment: string) {
+    if (!session) return;
+    setBusyInvoiceId(invoice.id);
+    try {
+      assertFinanceReviewer(session.role);
+      assertInvoiceTransition(invoice.status, status);
+      if (status === "Rejected" && comment.trim().length < 5) throw new Error("Enter a clear rejection reason.");
+      if (invoiceRepository.current) await invoiceRepository.current.review(invoice.id, status, comment, session);
+      else setInvoices(current => current.map(item => item.id === invoice.id ? { ...item, status, reviewedBy: session.name, reviewedAt: new Date().toISOString(), reviewComment: comment.trim() } : item));
+      log(status === "Rejected" ? "Rejected invoice" : status === "Under Review" ? "Started invoice review" : "Approved invoice", invoice.id);
+      notify(`${invoice.id} is now ${status}`);
+      setToast(`${invoice.id}: ${status}`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Invoice review failed.";
+      setToast(message);
+      return;
+    } finally { setBusyInvoiceId(null); }
+  }
+
+  async function exportInvoice(invoice: Invoice, format: FinanceExportFormat) {
+    if (!session) return;
+    setBusyInvoiceId(invoice.id);
+    try {
+      assertFinanceReviewer(session.role);
+      const output = serializeFinanceExport(invoice, format);
+      const fileName = `${invoice.id.toLowerCase()}-finance-export.${output.extension}`;
+      if (invoiceRepository.current) await invoiceRepository.current.recordExport(invoice, format, fileName, output.externalReference, session);
+      else setInvoices(current => current.map(item => item.id === invoice.id ? { ...item, status: "Exported", exportedBy: session.name, exportedAt: new Date().toISOString(), exportReference: output.externalReference } : item));
+      downloadInvoiceExport(fileName, output.content, output.mimeType);
+      log(`Generated ${format.toUpperCase()} finance export`, invoice.id);
+      notify(`${invoice.id} export ${output.externalReference} generated`);
+      setToast(`${fileName} downloaded and recorded`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Invoice export failed.";
+      setToast(message);
+      return;
+    } finally { setBusyInvoiceId(null); }
+  }
 
   if (screen !== "app" || !session) return <Auth screen={screen} setScreen={setScreen} login={login} quickLogin={quickLogin} toast={toast} />;
   const unread = notices.filter(n => !n.read).length;
@@ -104,7 +183,7 @@ export default function PortalApp() {
         {route === "work-orders" && selectedOrder && <OrderDetail order={selectedOrder} role={session.role} back={() => setSelectedOrder(null)} transition={transition} setModal={setModal} />}
         {route === "greyhounds" && <Greyhounds rows={greyhoundRows} readOnly={isReadOnly} setModal={setModal} />}
         {route === "practices" && <Practices rows={practiceRows} role={session.role} setModal={setModal} />}
-        {route === "invoices" && <Invoices invoices={invoices} role={session.role} update={(id, status) => { setInvoices(xs => xs.map(x => x.id === id ? { ...x, status } : x)); log(`${status} invoice`, id); notify(`${id} is now ${status}`); setToast(`${id}: ${status}`); }} setModal={setModal} />}
+        {route === "invoices" && <Invoices invoices={invoices} role={session.role} persistence={invoicePersistence} busyId={busyInvoiceId} onReview={reviewInvoice} onExport={exportInvoice} setModal={setModal} />}
         {route === "notifications" && <Notifications notices={notices} setNotices={setNotices} />}
         {route === "reports" && <Reports orders={orders} invoices={invoices} />}
         {route === "audit" && <AuditLog rows={audits} />}
@@ -113,15 +192,15 @@ export default function PortalApp() {
         {route === "help" && <Help setToast={setToast} />}
       </main>
     </div>
-    {modal && <Modal type={modal} close={() => setModal(null)} submit={(data) => {
+    {modal && <Modal type={modal} close={() => setModal(null)} invoiceContext={{ orders, invoices, practice: "Sydney Animal Emergency" }} submit={async (data) => {
       if (modal === "work-order") { const next = createEmergencyWorkOrder(data, 1045 + orders.length) as WorkOrder; setOrders(o => [next, ...o]); log("Created work order", next.id); notify(`${next.id} was created`); }
-      if (modal === "invoice") { const next = createTaxInvoice(data, 8850 + invoices.length) as Invoice; setInvoices(i => [next, ...i]); log("Submitted invoice", next.id); notify(`${next.id} was submitted for finance review`); }
+      if (modal === "invoice") { await submitInvoice(data); return; }
       if (modal === "incident") { const id = `INC-2026-${91 + incidentRows.length}`; setIncidentRows(r => [[id, new Date().toLocaleString("en-AU"), String(data.type), `${data.suburb} NSW`, "1", String(data.priority), "Draft"], ...r]); log("Created emergency incident", id); }
       if (modal === "greyhound") { const record = createGreyhoundRecord(data); setGreyhoundRows(r => [record, ...r]); log("Added greyhound", record[0]); }
       if (modal === "practice") { const name = String(data.tradingName || data.legalName); setPracticeRows(r => [[name, "Pending", "Inactive", String(data.coverage), "Not mapped", "—"], ...r]); log("Registered veterinary practice", name); }
       setModal(null); setToast("Saved successfully");
     }} />}
     {toast ? <div className={`toast ${toast.includes("incorrect") ? "error" : ""}`} role="status">{toast}</div> : null}
-    <footer>Prototype demonstration using synthetic data. Not for operational or clinical use. Coupa integration is deferred for this build.</footer>
+    <footer>Prototype using synthetic data. Approved invoices generate traceable JSON/CSV finance outputs; no live Coupa API is connected.</footer>
   </div>;
 }
