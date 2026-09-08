@@ -166,7 +166,9 @@ const accessibleSelectedOrder =
         {route === "dashboard" && <Dashboard role={session.role} orders={accessibleOrders} invoices={invoices} setRoute={setRoute} setModal={setModal} />}
         {route === "incidents" && <Incidents rows={incidentRows} readOnly={isReadOnly} setModal={setModal} />}
         {route === "work-orders" && !selectedOrder && <WorkOrders orders={orders} search={search} role={session.role} setSelected={setSelectedOrder} setModal={setModal} />}
-        {route === "work-orders" && selectedOrder && <OrderDetail order={selectedOrder} role={session.role} back={() => setSelectedOrder(null)} transition={transition} setModal={setModal} />}
+        {route === "work-orders" && accessibleSelectedOrder && (
+  <OrderDetail
+    order={accessibleSelectedOrder} role={session.role} back={() => setSelectedOrder(null)} transition={transition} setModal={setModal} />}
         {route === "greyhounds" && <Greyhounds rows={greyhoundRows} readOnly={isReadOnly} setModal={setModal} />}
         {route === "practices" && <Practices rows={practiceRows} role={session.role} setModal={setModal} />}
         {route === "invoices" && <Invoices invoices={invoices} role={session.role} update={(id, status) => { setInvoices(xs => xs.map(x => x.id === id ? { ...x, status } : x)); log(`${status} invoice`, id); notify(`${id} is now ${status}`); setToast(`${id}: ${status}`); }} setModal={setModal} />}
