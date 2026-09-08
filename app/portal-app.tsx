@@ -1,12 +1,23 @@
 /**
- * Team JAM contribution: JUBAYER ALAM
+ * Team JAM contribution: JUBAYER ALAM, Muhaiminul Choudhury
  * React application shell: session state, routing, layout chrome and the shared record modal.
  * Feature screens are implemented in ./features/* by their respective owners (see CONTRIBUTION_INDEX.md).
  */
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
-import { Role, WorkOrder, Invoice, Notice, Audit, roles, nav, restricted, accounts } from "./shared/types";
+import { Role,
+  Session,
+  WorkOrder,
+  Invoice,
+  Notice,
+  Audit,
+  roles,
+  nav,
+  restricted,
+  accounts,
+  canAccessWorkOrder,
+} from "./shared/types";
 import { seedOrders, seedInvoices, seedIncidents, seedPractices } from "./shared/seed-data";
 import { Modal } from "./shared/Modal";
 import { Auth } from "./features/auth/Auth";
@@ -28,7 +39,7 @@ import { createEmergencyWorkOrder, createTaxInvoice } from "./contributions/juba
 import { createGreyhoundRecord, greyhoundDirectorySeed } from "./contributions/arjun-greyhounds";
 
 export default function PortalApp() {
-  const [session, setSession] = useState<{ email: string; role: Role; name: string } | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
   const [screen, setScreen] = useState("login");
   const [route, setRoute] = useState("dashboard");
   const [orders, setOrders] = useState<WorkOrder[]>(seedOrders);
@@ -74,11 +85,65 @@ export default function PortalApp() {
   }
   function quickLogin(email: string) { const s = { email, ...accounts[email] }; setSession(s); setScreen("app"); setRoute("dashboard"); setToast(`Signed in as ${s.role}`); }
   function logout() { localStorage.removeItem("gap-session"); setSession(null); setScreen("login"); setToast("Signed out securely"); }
-  function changeRole(role: Role) { if (!session) return; setSession({ ...session, role }); setRoute("dashboard"); setToast(`Prototype role changed to ${role}`); }
+  function changeRole(role: Role) {
+  if (!session) return;
+
+  const practice =
+    role === "Veterinary Practice"
+      ? session.practice || accounts["vet@gap-demo.nsw"].practice
+      : undefined;
+
+  setSession({
+    ...session,
+    role,
+    practice,
+  });
+
+  setSelectedOrder(null);
+  setRoute("dashboard");
+  setToast(`Prototype role changed to ${role}`);
+}
+Replace transition
+Find the existing transition function and replace it with:
+function transition(order: WorkOrder, status: string) {
+  if (!session || !canAccessWorkOrder(session, order)) {
+    setSelectedOrder(null);
+    setToast("You do not have access to this work order");
+    return;
+  }
+
+  const updatedOrder = {
+    ...order,
+    status,
+    updated: "Just now",
+  };
+
+  setOrders((currentOrders) =>
+    currentOrders.map((currentOrder) =>
+      currentOrder.id === order.id
+        ? updatedOrder
+        : currentOrder,
+    ),
+  );
+
+  setSelectedOrder(updatedOrder);
+  log(`Status changed to ${status}`, order.id);
+  notify(`${order.id} is now ${status}`);
+  setToast(`${order.id} updated`);
+}
   function transition(order: WorkOrder, status: string) { setOrders(os => os.map(o => o.id === order.id ? { ...o, status, updated: "Just now" } : o)); setSelectedOrder({ ...order, status, updated: "Just now" }); log(`Status changed to ${status}`, order.id); notify(`${order.id} is now ${status}`); setToast(`${order.id} updated`); }
 
   if (screen !== "app" || !session) return <Auth screen={screen} setScreen={setScreen} login={login} quickLogin={quickLogin} toast={toast} />;
   const unread = notices.filter(n => !n.read).length;
+  const accessibleOrders = orders.filter((order) =>
+  canAccessWorkOrder(session, order),
+);
+
+const accessibleSelectedOrder =
+  selectedOrder &&
+  canAccessWorkOrder(session, selectedOrder)
+    ? selectedOrder
+    : null;
 
   return <div className={`portal ${collapsed ? "collapsed" : ""}`}>
     <aside className="sidebar" aria-label="Primary navigation">
