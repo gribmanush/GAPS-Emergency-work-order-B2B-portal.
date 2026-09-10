@@ -6,7 +6,8 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
-import { Role, WorkOrder, Invoice, Notice, Audit, roles, nav, restricted, accounts } from "./shared/types";
+import { onAuthStateChanged } from "firebase/auth";
+import { Role, WorkOrder, Invoice, Notice, Audit, UserProfile, roles, nav, restricted } from "./shared/types";
 import { seedOrders, seedInvoices, seedIncidents, seedPractices } from "./shared/seed-data";
 import { Modal } from "./shared/Modal";
 import { Auth } from "./features/auth/Auth";
@@ -23,12 +24,12 @@ import { AuditLog } from "./features/misc/AuditLog";
 import { Users } from "./features/misc/Users";
 import { Settings } from "./features/misc/Settings";
 import { Help } from "./features/misc/Help";
-import { validateDemoCredentials } from "./contributions/ankita-auth";
+import { auth, friendlyAuthError, isStrongPassword, loadProfile, requestPasswordReset, signIn, signOutUser, signUp } from "./contributions/ankita-auth";
 import { createEmergencyWorkOrder, createTaxInvoice } from "./contributions/jubayer-workflows";
 import { createGreyhoundRecord, greyhoundDirectorySeed } from "./contributions/arjun-greyhounds";
 
 export default function PortalApp() {
-  const [session, setSession] = useState<{ email: string; role: Role; name: string } | null>(null);
+  const [session, setSession] = useState<UserProfile | null>(null);
   const [screen, setScreen] = useState("login");
   const [route, setRoute] = useState("dashboard");
   const [orders, setOrders] = useState<WorkOrder[]>(seedOrders);
@@ -56,28 +57,53 @@ export default function PortalApp() {
   useEffect(() => {
     const saved = localStorage.getItem("gap-portal-state");
     if (saved) { try { const p = JSON.parse(saved); setOrders(p.orders || seedOrders); setInvoices(p.invoices || seedInvoices); setIncidentRows(p.incidentRows || seedIncidents); setGreyhoundRows(p.greyhoundRows || greyhoundDirectorySeed); setPracticeRows(p.practiceRows || seedPractices); setNotices(p.notices || []); setAudits(p.audits || []); } catch { } }
-    const remembered = localStorage.getItem("gap-session"); if (remembered) { try { setSession(JSON.parse(remembered)); setScreen("app"); } catch { } }
+  }, []);
+  useEffect(() => {
+    return onAuthStateChanged(auth, async (user) => {
+      if (!user) { setSession(null); setScreen("login"); return; }
+      const profile = await loadProfile(user.uid, user.email || "");
+      setSession(profile); setScreen("app"); setRoute("dashboard");
+      setAudits(a => [{ id: Date.now(), time: new Date().toLocaleString("en-AU"), user: profile.fullName, role: profile.role, action: "Signed in", record: "SESSION" }, ...a]);
+    });
   }, []);
   useEffect(() => { if (screen === "app") localStorage.setItem("gap-portal-state", JSON.stringify({ orders, invoices, incidentRows, greyhoundRows, practiceRows, notices, audits })); }, [orders, invoices, incidentRows, greyhoundRows, practiceRows, notices, audits, screen]);
   useEffect(() => { if (toast) { const t = setTimeout(() => setToast(""), 3200); return () => clearTimeout(t); } }, [toast]);
 
-  const log = (action: string, record: string) => setAudits(a => [{ id: Date.now(), time: new Date().toLocaleString("en-AU"), user: session?.name || "Demo user", role: session?.role || "System", action, record }, ...a]);
+  const log = (action: string, record: string) => setAudits(a => [{ id: Date.now(), time: new Date().toLocaleString("en-AU"), user: session?.fullName || "Demo user", role: session?.role || "System", action, record }, ...a]);
   const notify = (text: string) => setNotices(n => [{ id: Date.now(), text, time: "Just now", read: false }, ...n]);
   const isReadOnly = session?.role === "GRNSW Auditor";
   const visibleNav = nav.filter(([id]) => !restricted[id] || restricted[id].includes(session?.role as Role));
 
-  function login(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault(); const fd = new FormData(e.currentTarget); const result = validateDemoCredentials(String(fd.get("email")), String(fd.get("password")), Object.keys(accounts)); const email = result.normalizedEmail;
-    if (!result.valid) { setToast("Email or password is incorrect"); return; }
-    const s = { email, ...accounts[email] }; setSession(s); setScreen("app"); setRoute("dashboard");
-    if (fd.get("remember")) localStorage.setItem("gap-session", JSON.stringify(s)); log("Signed in", "SESSION");
+  async function login(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault(); const fd = new FormData(e.currentTarget);
+    try { await signIn(String(fd.get("email")), String(fd.get("password")), Boolean(fd.get("remember"))); }
+    catch (err) { setToast(friendlyAuthError(err)); }
   }
-  function quickLogin(email: string) { const s = { email, ...accounts[email] }; setSession(s); setScreen("app"); setRoute("dashboard"); setToast(`Signed in as ${s.role}`); }
-  function logout() { localStorage.removeItem("gap-session"); setSession(null); setScreen("login"); setToast("Signed out securely"); }
+  async function logout() { await signOutUser(); setToast("Signed out securely"); }
+  async function signup(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault(); const fd = new FormData(e.currentTarget);
+    const password = String(fd.get("password")); const confirmPassword = String(fd.get("confirmPassword"));
+    if (password !== confirmPassword) { setToast("Passwords do not match"); return; }
+    if (!isStrongPassword(password)) { setToast("Password does not meet the strength requirements"); return; }
+    const role = String(fd.get("role")) as Role;
+    const base = {
+      email: String(fd.get("email")), fullName: `${fd.get("firstName")} ${fd.get("lastName")}`.trim(), phone: String(fd.get("phone")), role,
+    };
+    const profileData = role === "Veterinary Practice"
+      ? { ...base, licenseNumber: String(fd.get("licenseNumber")), specialty: String(fd.get("specialty")) as UserProfile["specialty"], deaNumber: String(fd.get("deaNumber") || ""), emergencyContact: String(fd.get("emergencyContact")) }
+      : { ...base, employeeId: String(fd.get("employeeId")), jobTitle: String(fd.get("jobTitle")) as UserProfile["jobTitle"], branch: String(fd.get("branch")) };
+    try { await signUp(profileData, password); }
+    catch (err) { setToast(friendlyAuthError(err)); }
+  }
+  async function forgotPassword(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault(); const fd = new FormData(e.currentTarget);
+    try { await requestPasswordReset(String(fd.get("email"))); setScreen("sent"); }
+    catch (err) { setToast(friendlyAuthError(err)); }
+  }
   function changeRole(role: Role) { if (!session) return; setSession({ ...session, role }); setRoute("dashboard"); setToast(`Prototype role changed to ${role}`); }
   function transition(order: WorkOrder, status: string) { setOrders(os => os.map(o => o.id === order.id ? { ...o, status, updated: "Just now" } : o)); setSelectedOrder({ ...order, status, updated: "Just now" }); log(`Status changed to ${status}`, order.id); notify(`${order.id} is now ${status}`); setToast(`${order.id} updated`); }
 
-  if (screen !== "app" || !session) return <Auth screen={screen} setScreen={setScreen} login={login} quickLogin={quickLogin} toast={toast} />;
+  if (screen !== "app" || !session) return <Auth screen={screen} setScreen={setScreen} login={login} signup={signup} forgotPassword={forgotPassword} toast={toast} />;
   const unread = notices.filter(n => !n.read).length;
 
   return <div className={`portal ${collapsed ? "collapsed" : ""}`}>
@@ -93,7 +119,7 @@ export default function PortalApp() {
         <div className="top-actions">
           <label className="role-switch"><small>Prototype role</small><select value={session.role} onChange={e => changeRole(e.target.value as Role)}>{roles.map(r => <option key={r}>{r}</option>)}</select></label>
           <button className="icon-button" onClick={() => setRoute("notifications")} aria-label={`${unread} unread notifications`}>♢{unread ? <b>{unread}</b> : null}</button>
-          <div className="user"><div className="avatar">{session.name.split(" ").map(x => x[0]).join("").slice(0, 2)}</div><div><b>{session.name}</b><span>{session.role}</span></div><button onClick={logout}>Log out</button></div>
+          <div className="user"><div className="avatar">{session.fullName.split(" ").map(x => x[0]).join("").slice(0, 2)}</div><div><b>{session.fullName}</b><span>{session.role}</span></div><button onClick={logout}>Log out</button></div>
         </div>
       </header>
       <main>
