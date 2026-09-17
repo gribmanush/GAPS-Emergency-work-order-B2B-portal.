@@ -1,5 +1,30 @@
 export type Role = "GAP Administrator" | "GAP Case Manager" | "Veterinary Practice" | "Finance Approver" | "GRNSW Auditor";
 
+export type VetSpecialty = "Small Animals" | "Equine" | "Livestock" | "Exotic" | "Surgery";
+export const vetSpecialties: VetSpecialty[] = ["Small Animals", "Equine", "Livestock", "Exotic", "Surgery"];
+
+export type StaffJobTitle = "Medical Receptionist" | "Practice Manager" | "Billing Clerk" | "Vet Technician";
+export const staffJobTitles: StaffJobTitle[] = ["Medical Receptionist", "Practice Manager", "Billing Clerk", "Vet Technician"];
+
+// Every signed-up account's profile, stored in Firestore at users/{uid}.
+// Vet-only and staff-only fields are optional since only one set applies per role.
+export type UserProfile = {
+  uid: string;
+  email: string;
+  fullName: string;
+  phone: string;
+  role: Role;
+  // Veterinary Practice only
+  licenseNumber?: string;
+  specialty?: VetSpecialty;
+  deaNumber?: string;
+  emergencyContact?: string;
+  // Every other role (GAP staff)
+  employeeId?: string;
+  jobTitle?: StaffJobTitle;
+  branch?: string;
+};
+
 export type WorkOrder = {
   id: string; incident: string; dogs: string[]; priority: string; practice: string;
   status: string; due: string; limit: number; service: string; updated: string; notes: string;
@@ -67,6 +92,9 @@ export type Audit = { id: number; time: string; user: string; role: string; acti
 
 export const roles: Role[] = ["GAP Administrator", "GAP Case Manager", "Veterinary Practice", "Finance Approver", "GRNSW Auditor"];
 
+// Fallback role lookup for accounts created directly in the Firebase console
+// (e.g. demo accounts) rather than through the app's sign-up form, which has
+// no Firestore profile document to read a role from otherwise.
 export const accounts: Record<string, { role: Role; name: string }> = {
   "admin@gap-demo.nsw": { role: "GAP Administrator", name: "Alex Morgan" },
   "manager@gap-demo.nsw": { role: "GAP Case Manager", name: "Jordan Lee" },

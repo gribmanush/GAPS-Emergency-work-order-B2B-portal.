@@ -11,20 +11,20 @@
 
 ## Firebase setup
 
-1. Create a Firebase web app and a Cloud Firestore database.
-2. Enable Anonymous sign-in in Firebase Authentication for the semester demonstration.
-3. Copy firebase.env.example to .env.local and replace every placeholder.
-4. Deploy firestore.rules.
-5. Start the portal and sign in with a demo account. The Invoices page must display Firestore connected.
+1. Create a Firebase web app and a Cloud Firestore database (see app/lib/firebase.ts for the project this build points at).
+2. Enable Email/Password sign-in in Firebase Authentication, and Firestore, in that project.
+3. Deploy firestore.rules (`firebase deploy --only firestore:rules`).
+4. Start the portal, sign up or sign in with a real account. The Invoices page must display Firestore connected.
 
-If Firebase variables are absent, the portal clearly enters demonstration mode and retains invoice data locally. This permits an offline showcase but is not presented as shared cloud persistence.
+If Firestore cannot be reached (rules not deployed, network issue, etc.), the portal enters demonstration mode and retains invoice data locally. This permits an offline showcase but is not presented as shared cloud persistence.
 
 ## Collections
 
+- users/{uid} — the signed-in account's role and profile fields, written at sign-up.
 - invoices/{invoiceId} — canonical invoice and current workflow status.
 - invoices/{invoiceId}/auditEvents/{eventId} — append-only transition history.
 - financeExports/{exportId} — immutable output-generation evidence.
 
 ## Production boundary
 
-Anonymous Firebase Authentication is deliberately limited to the semester prototype. A production release must replace it with organisation-managed identity and server-issued role/supplier claims, restrict each vet to its own practice, upload supporting documents to protected object storage, and run finance export from a trusted server.
+Every actor is a real, named Firebase Authentication account (email/password) tied to a Firestore profile — there is no anonymous or demo login path. A production release must still add organisation-managed identity (e.g. Microsoft Entra ID for GAP staff) and server-issued role/supplier claims, restrict each vet to its own practice, upload supporting documents to protected object storage, and run finance export from a trusted server.

@@ -1,41 +1,33 @@
-"use client";
-
-import { getApp, getApps, initializeApp } from "firebase/app";
-import { getAuth, signInAnonymously, User } from "firebase/auth";
-import { Firestore, getFirestore } from "firebase/firestore";
+/**
+ * Firebase project wiring: Authentication (email/password) + Firestore
+ * (per-user role/profile fields at sign up, and the invoice workflow).
+ *
+ * These values are safe to commit: Firebase's own docs confirm the web config
+ * is not a secret (security comes from Firestore/Auth rules, not from hiding
+ * this object). Email/Password sign-in and Firestore must be enabled in the
+ * Firebase console, and firestore.rules deployed, for this to work end to end.
+ */
+import { getApp, getApps, initializeApp, type FirebaseApp } from "firebase/app";
+import { getAuth } from "firebase/auth";
+import { getFirestore, type Firestore } from "firebase/firestore";
 
 const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+  apiKey: "AIzaSyBveIAfSFi29HiKaF6zfYOoLPjKMdYtxWs",
+  authDomain: "gap-emergency-work-order.firebaseapp.com",
+  projectId: "gap-emergency-work-order",
+  storageBucket: "gap-emergency-work-order.firebasestorage.app",
+  messagingSenderId: "498062084015",
+  appId: "1:498062084015:web:c07bf7c33072e5f5c2115a",
+  measurementId: "G-JME072G0HL",
 };
 
-export const isFirebaseConfigured = Boolean(
-  firebaseConfig.apiKey &&
-    firebaseConfig.authDomain &&
-    firebaseConfig.projectId &&
-    firebaseConfig.appId,
-);
+export const isFirebaseConfigured = true;
 
-let firestore: Firestore | null = null;
+const app: FirebaseApp = getApps().length ? getApp() : initializeApp(firebaseConfig);
+
+export const auth = getAuth(app);
+export const db: Firestore = getFirestore(app);
 
 export function getFirebaseDb(): Firestore | null {
-  if (!isFirebaseConfigured) return null;
-  if (firestore) return firestore;
-
-  const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
-  firestore = getFirestore(app);
-  return firestore;
-}
-
-export async function ensureFirebaseSession(): Promise<User> {
-  if (!isFirebaseConfigured) throw new Error("Firebase is not configured.");
-  const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
-  const auth = getAuth(app);
-  if (auth.currentUser) return auth.currentUser;
-  const credential = await signInAnonymously(auth);
-  return credential.user;
+  return db;
 }

@@ -10,7 +10,7 @@ import {
   runTransaction,
   serverTimestamp,
 } from "firebase/firestore";
-import { ensureFirebaseSession, getFirebaseDb } from "../../lib/firebase";
+import { auth, getFirebaseDb } from "../../lib/firebase";
 import type {
   FinanceExportFormat,
   FinanceExportRecord,
@@ -50,6 +50,12 @@ export type InvoiceRepository = {
   ): Promise<FinanceExportRecord>;
 };
 
+function requireUser() {
+  const user = auth.currentUser;
+  if (!user) throw new Error("You must be signed in to manage invoices.");
+  return user;
+}
+
 export function createInvoiceRepository(): InvoiceRepository | null {
   const db = getFirebaseDb();
   return db ? firestoreInvoiceRepository(db) : null;
@@ -60,26 +66,18 @@ function firestoreInvoiceRepository(db: Firestore): InvoiceRepository {
 
   return {
     subscribe(onValue, onError) {
-      let unsubscribe: () => void = () => undefined;
-      let active = true;
-      void ensureFirebaseSession()
-        .then(() => {
-          if (!active) return;
-          unsubscribe = onSnapshot(
-            query(invoices, orderBy("submittedAt", "desc")),
-            snapshot => onValue(snapshot.docs.map(item => normaliseInvoice(item.id, item.data()))),
-            error => onError(humaniseFirestoreError(error)),
-          );
-        })
-        .catch(error => onError(humaniseFirestoreError(error)));
-      return () => { active = false; unsubscribe(); };
+      return onSnapshot(
+        query(invoices, orderBy("submittedAt", "desc")),
+        snapshot => onValue(snapshot.docs.map(item => normaliseInvoice(item.id, item.data()))),
+        error => onError(humaniseFirestoreError(error)),
+      );
     },
 
     async submit(invoice, actor) {
       if (actor.role !== "Veterinary Practice") {
         throw new Error("Only a veterinary practice can submit an invoice.");
       }
-      const firebaseUser = await ensureFirebaseSession();
+      const firebaseUser = requireUser();
       const invoiceRef = doc(invoices, invoice.id);
       const auditRef = doc(collection(invoiceRef, "auditEvents"));
       await runTransaction(db, async transaction => {
@@ -110,7 +108,7 @@ function firestoreInvoiceRepository(db: Firestore): InvoiceRepository {
         throw new Error("A clear rejection reason is required.");
       }
 
-      const firebaseUser = await ensureFirebaseSession();
+      const firebaseUser = requireUser();
       const invoiceRef = doc(invoices, id);
       const auditRef = doc(collection(invoiceRef, "auditEvents"));
       await runTransaction(db, async transaction => {
@@ -144,7 +142,7 @@ function firestoreInvoiceRepository(db: Firestore): InvoiceRepository {
       if (invoice.status !== "Approved — Ready for export" && invoice.status !== "Exported") {
         throw new Error("Only an approved invoice can be exported.");
       }
-      const firebaseUser = await ensureFirebaseSession();
+      const firebaseUser = requireUser();
       const createdAt = new Date().toISOString();
       const exportRef = doc(collection(db, "financeExports"));
       const invoiceRef = doc(invoices, invoice.id);

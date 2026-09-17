@@ -45,11 +45,11 @@ The role switcher in the header is a prototype review tool, not production authe
 
 Install dependencies with pnpm, then run pnpm dev. Open the local URL shown by the server. The validated production build uses pnpm build.
 
-## Invoice persistence
+## Authentication and invoice persistence
 
-Copy firebase.env.example to .env.local, provide a Firebase web-app configuration, enable Anonymous Authentication for the semester demonstration and deploy firestore.rules. See docs/FIREBASE_INVOICE_WORKFLOW.md.
+Sign in or create an account with a real email and password — every account is a genuine Firebase Authentication user with a Firestore profile (role, name, and role-specific fields collected at sign-up). See app/lib/firebase.ts for the Firebase project this build points at, and deploy firestore.rules before relying on it (`firebase deploy --only firestore:rules`). See docs/FIREBASE_INVOICE_WORKFLOW.md for the invoice data model.
 
-When Firebase is configured, invoices, review decisions and export evidence use Firestore transactions. Without configuration, the portal explicitly displays **Demonstration mode** and uses local storage.
+When Firestore is reachable, invoices, review decisions and export evidence use Firestore transactions tied to the signed-in user. If Firestore is unreachable, the portal explicitly displays **Demonstration mode** and falls back to local storage.
 
 ## Prototype limitations
 
