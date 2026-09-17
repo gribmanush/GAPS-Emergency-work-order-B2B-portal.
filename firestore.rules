@@ -1,0 +1,62 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    function validInvoiceStatus(status) {
+      return status in ['Submitted', 'Under Review', 'Approved — Ready for export', 'Rejected', 'Exported'];
+    }
+    function validTransition(before, after) {
+      return
+        (before == 'Submitted' && after in ['Under Review', 'Approved — Ready for export', 'Rejected']) ||
+        (before == 'Under Review' && after in ['Approved — Ready for export', 'Rejected']) ||
+        (before == 'Approved — Ready for export' && after == 'Exported') ||
+        (before == after);
+    }
+
+    match /invoices/{invoiceId} {
+      allow read: if signedIn();
+      allow create: if signedIn()
+        && request.resource.data.id == invoiceId
+        && request.resource.data.status == 'Submitted'
+        && request.resource.data.submittedByUid == request.auth.uid
+        && request.resource.data.amount > 0
+        && request.resource.data.currency == 'AUD';
+      allow update: if signedIn()
+        && validInvoiceStatus(request.resource.data.status)
+        && validTransition(resource.data.status, request.resource.data.status)
+        && request.resource.data.id == resource.data.id
+        && request.resource.data.workOrder == resource.data.workOrder
+        && request.resource.data.practice == resource.data.practice
+        && request.resource.data.supplierId == resource.data.supplierId
+        && request.resource.data.invoiceNumber == resource.data.invoiceNumber
+        && request.resource.data.amount == resource.data.amount;
+      allow delete: if false;
+
+      match /auditEvents/{eventId} {
+        allow read, create: if signedIn();
+        allow update, delete: if false;
+      }
+    }
+
+    match /financeExports/{exportId} {
+      allow read: if signedIn();
+      allow create: if signedIn()
+        && request.resource.data.createdByUid == request.auth.uid
+        && request.resource.data.status == 'Generated'
+        && request.resource.data.format in ['json', 'csv'];
+      allow update, delete: if false;
+    }
+
+    match /users/{uid} {
+      allow read: if signedIn() && request.auth.uid == uid;
+      allow create, update: if signedIn()
+        && request.auth.uid == uid
+        && request.resource.data.uid == uid;
+      allow delete: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

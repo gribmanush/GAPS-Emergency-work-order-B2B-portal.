@@ -6,7 +6,7 @@ const faqs = [
   ["How do I create a work order?", "Open Work Orders, select Create work order, add incident, greyhounds, services, practice and financial authority, then review before assignment."],
   ["How does a practice acknowledge work?", "Veterinary users open a newly assigned work order and select Acknowledge. They can only access work assigned to their own practice."],
   ["How do I submit an invoice?", "After completing veterinary work, open the Invoice tab or Invoices page, enter line items and supporting evidence, then submit for finance review."],
-  ["What happens after invoice approval?", "For this build the invoice stops at Approved — Coupa pending. Coupa is deliberately disabled until the integration phase."],
+  ["What happens after invoice approval?", "A GAP finance user can generate an audited Coupa-ready JSON or CSV output. The client is not providing an API, so the portal does not claim a live Coupa integration."],
 ];
 
 export function Help({ setToast }: { setToast: (s: string) => void }) {
