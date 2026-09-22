@@ -103,6 +103,7 @@ function SignupForm({ onSubmit }: { onSubmit: (e: FormEvent<HTMLFormElement>) =>
     <label>Phone number<input name="phone" type="tel" required /></label>
 
     {isVet ? <>
+      <label className="full">Veterinary practice name<small>This must match the practice assigned to work orders and invoices.</small><input name="practiceName" required placeholder="e.g. Sydney Animal Emergency" /></label>
       <label className="full">Veterinary licence / registration number<small>The official ID issued by your state or national veterinary board.</small><input name="licenseNumber" required /></label>
       <label>Specialty / primary focus<select name="specialty">{vetSpecialties.map(s => <option key={s}>{s}</option>)}</select></label>
       <label>DEA / controlled substances licence number<small>Optional</small><input name="deaNumber" /></label>

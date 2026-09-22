@@ -6,7 +6,7 @@ Team JAM's interactive capstone prototype for Greyhounds As Pets NSW (GAP NSW), 
 
 The portal coordinates an emergency veterinary workflow from incident intake through multi-greyhound work orders, veterinary assignment, treatment progress, invoice submission and GAP finance review.
 
-Coupa is deliberately disabled in this build. Approved invoices stop at **Approved — Coupa pending** and no financial data leaves the application.
+The portal does not call a Coupa API because the client will not provide one. After GAP approval, authorised finance users can generate traceable JSON or CSV files whose fields are ready to map into a finance system such as Coupa.
 
 ## Demonstrated roles
 
@@ -35,22 +35,37 @@ The role switcher in the header is a prototype review tool, not production authe
 - Multi-greyhound work-order creation and status workflow
 - Assignment acknowledgement, decline and reassignment states
 - Treatment services and work-order history views
-- Veterinary invoice submission and finance approval/rejection
+- Firestore-backed veterinary invoice submission and GAP finance approval/rejection
+- Audited invoice status transitions and role-enforced finance actions
+- Coupa-ready JSON and CSV output after approval (no live Coupa API)
 - Notifications, operational reports and audit records
 - CSV exports, responsive layouts and accessible form controls
-- Browser-local persistence and demonstration-data reset
+- Shared Firebase Authentication and Firestore invoice persistence
+- Browser-local persistence for remaining prototype modules and demonstration-data reset
 
 ## Running locally
 
 Install dependencies and start the development server using the package scripts. Open the local URL shown by the server. The validated production build uses the `build` script.
 
+## Firebase and invoice setup
+
+This branch deliberately reuses `app/lib/firebase.ts`, the Firebase project already configured for user authentication. Do not replace it with a personal Firebase project.
+
+1. Enable Firestore in that same Firebase project.
+2. Deploy `firestore.rules` from this repository.
+3. Ensure signed-in users have a `users/{uid}` profile with the correct role.
+4. Sign in as a veterinary practice to submit an invoice for a completed work order.
+5. Sign in as a GAP Administrator or Finance Approver to review, approve and export it.
+
+See `docs/FIREBASE_INVOICE_WORKFLOW.md` and `docs/COUPA_READY_EXPORT.md` for the data flow and verification steps.
+
 ## Prototype limitations
 
-- Data is synthetic and stored only in the browser for demonstration.
-- Authentication and Microsoft Entra ID are simulated.
+- Data is synthetic. Invoice records and audit/export metadata use Firestore; other prototype records remain browser-local.
+- Authentication uses Firebase email/password. Microsoft Entra ID is not connected.
 - File upload stores no real clinical document.
 - Email and external notifications are simulated.
-- Coupa and Dynamics 365 are not connected in this build.
+- Coupa and Dynamics 365 are not connected; the build demonstrates a controlled outbound file handoff.
 - Production use requires secure backend authentication, server-enforced authorisation, a managed database, encrypted document storage, monitoring and approved enterprise integrations.
 
 ## Team JAM

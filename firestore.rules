@@ -1,0 +1,83 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function profile() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function hasRole(allowedRoles) {
+      return signedIn() && profile().role in allowedRoles;
+    }
+
+    function financeReviewer() {
+      return hasRole(['GAP Administrator', 'Finance Approver']);
+    }
+
+    match /users/{userId} {
+      allow create, read: if signedIn() && request.auth.uid == userId;
+      allow update: if signedIn()
+        && request.auth.uid == userId
+        && request.resource.data.role == resource.data.role;
+      allow read: if hasRole(['GAP Administrator']);
+    }
+
+    match /invoices/{invoiceId} {
+      allow create: if hasRole(['Veterinary Practice'])
+        && request.resource.data.submittedByUid == request.auth.uid
+        && request.resource.data.status == 'Submitted'
+        && request.resource.data.keys().hasAll([
+          'workOrder', 'practice', 'supplierId', 'invoiceNumber', 'invoiceDate',
+          'dueDate', 'currency', 'subtotal', 'gst', 'amount', 'lineItems',
+          'submittedBy', 'submittedByUid', 'submittedAt'
+        ]);
+
+      allow read: if hasRole([
+        'GAP Administrator', 'GAP Case Manager', 'Finance Approver', 'GRNSW Auditor'
+      ]) || (hasRole(['Veterinary Practice']) && resource.data.submittedByUid == request.auth.uid);
+
+      allow update: if financeReviewer()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'status', 'reviewedBy', 'reviewedAt', 'reviewComment', 'reviewedByUid',
+          'exportedBy', 'exportedAt', 'exportReference', 'exportedByUid', 'updatedAt'
+        ])
+        && (
+          (resource.data.status == 'Submitted'
+            && request.resource.data.status in ['Under Review', 'Approved — Ready for export', 'Rejected'])
+          || (resource.data.status == 'Under Review'
+            && request.resource.data.status in ['Approved — Ready for export', 'Rejected'])
+          || (resource.data.status == 'Approved — Ready for export'
+            && request.resource.data.status == 'Exported')
+          || (resource.data.status == 'Exported'
+            && request.resource.data.status == 'Exported')
+        );
+
+      allow delete: if false;
+
+      match /auditEvents/{eventId} {
+        allow create: if signedIn()
+          && request.resource.data.actorUid == request.auth.uid;
+        allow read: if hasRole([
+          'GAP Administrator', 'GAP Case Manager', 'Finance Approver', 'GRNSW Auditor'
+        ]) || (hasRole(['Veterinary Practice'])
+          && get(/databases/$(database)/documents/invoices/$(invoiceId)).data.submittedByUid == request.auth.uid);
+        allow update, delete: if false;
+      }
+    }
+
+    match /financeExports/{exportId} {
+      allow create: if financeReviewer()
+        && request.resource.data.createdByUid == request.auth.uid
+        && request.resource.data.status == 'Generated';
+      allow read: if hasRole(['GAP Administrator', 'Finance Approver', 'GRNSW Auditor']);
+      allow update, delete: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

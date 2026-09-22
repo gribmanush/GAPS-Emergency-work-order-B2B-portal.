@@ -12,6 +12,17 @@ As of 24 August 2026 the UI was refactored out of a single shared file (`app/por
 | Arjun Singh | TJ-35 Greyhounds | `app/features/greyhounds/*.tsx` | `app/contributions/arjun-greyhounds.ts` | Done |
 | MUHAIMINUL CHOUDHURY | No TJ-25 child item assigned | None yet | `app/contributions/muhaimin-assignment-needed.ts` | Assignment required |
 
+## Sprint 3 clean rebuild from current main
+
+Aanay's invoice persistence and finance-output work was rebuilt from commit `f769967` on branch `feature/TJ-109-TJ-110-rebuild-from-main`, avoiding the unmergeable history of the earlier branch.
+
+| Team member | Jira item | Deliverable | Evidence files |
+|---|---|---|---|
+| Aanay Vartak | TJ-109 | Persist invoice submission and GAP approval workflow in Firestore | `app/features/invoices/invoice-repository.ts`, `app/features/invoices/invoice-workflow.ts`, `firestore.rules` |
+| Aanay Vartak | TJ-110 | Generate approved invoice output suitable for a system such as Coupa | `app/features/invoices/invoice-export.ts`, `docs/COUPA_READY_EXPORT.md`, `tests/invoice-workflow.test.mjs` |
+
+Both tasks use the Firebase project already configured in `app/lib/firebase.ts`; no personal Firebase project was added. TJ-110 produces downloadable JSON/CSV and audit metadata only. It does not claim a live Coupa integration.
+
 Screens with no named owner (Incidents, Veterinary Practices, Notifications, Reports, Audit Log, User Administration, Settings, Help — under `app/features/misc/`) are bundled with Jubayer's app-shell setup for now because no TJ-25 child item currently assigns them to a specific person. Reassign as needed once Jira has an owner for each.
 
 **Correction (25 Aug 2026):** an earlier pass of this index had the Greyhounds ownership backwards. The team confirmed Arjun built TJ-35 (Greyhounds), and Muhaimin has not yet been assigned or has not yet implemented a TJ-25 child item.

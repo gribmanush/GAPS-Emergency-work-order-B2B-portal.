@@ -10,10 +10,34 @@ export const seedOrders: WorkOrder[] = [
 ];
 
 export const seedInvoices: Invoice[] = [
-  { id:"INV-8841", workOrder:"WO-2026-1039", practice:"Western Sydney Vet Care", amount:2418, status:"Submitted", version:1, date:"20 Aug 2026" },
-  { id:"INV-8837", workOrder:"WO-2026-1034", practice:"Sydney Animal Emergency", amount:882.50, status:"Approved — Coupa pending", version:1, date:"19 Aug 2026" },
-  { id:"INV-8829", workOrder:"WO-2026-1028", practice:"North Shore Veterinary Hospital", amount:1640, status:"Rejected", version:1, date:"18 Aug 2026" },
-  { id:"INV-8829-V2", workOrder:"WO-2026-1028", practice:"North Shore Veterinary Hospital", amount:1540, status:"Draft", version:2, date:"21 Aug 2026" },
+  {
+    id:"INV-8841", workOrder:"WO-2026-1039", practice:"Western Sydney Vet Care", supplierId:"SUP-1176",
+    invoiceNumber:"WSVC-8841", invoiceDate:"2026-08-20", dueDate:"2026-09-19", currency:"AUD",
+    subtotal:2198.18, gst:219.82, amount:2418, status:"Submitted", version:1, date:"20 Aug 2026",
+    lineItems:[{ description:"Wound care and medication", quantity:1, unitPrice:2198.18, gstRate:10, netAmount:2198.18, gstAmount:219.82, grossAmount:2418 }],
+    submittedBy:"Western Sydney Vet Care", submittedAt:"2026-08-20T04:10:00.000Z",
+  },
+  {
+    id:"INV-8837", workOrder:"WO-2026-1034", practice:"Sydney Animal Emergency", supplierId:"SUP-1048",
+    invoiceNumber:"SAE-8837", invoiceDate:"2026-08-19", dueDate:"2026-09-18", currency:"AUD",
+    subtotal:802.27, gst:80.23, amount:882.50, status:"Approved — Ready for export", version:1, date:"19 Aug 2026",
+    lineItems:[{ description:"Consultation and medication", quantity:1, unitPrice:802.27, gstRate:10, netAmount:802.27, gstAmount:80.23, grossAmount:882.50 }],
+    submittedBy:"Sydney Animal Emergency", submittedAt:"2026-08-19T05:20:00.000Z", reviewedBy:"GAP Finance", reviewedAt:"2026-08-19T06:00:00.000Z",
+  },
+  {
+    id:"INV-8829", workOrder:"WO-2026-1028", practice:"North Shore Veterinary Hospital", supplierId:"SUP-1102",
+    invoiceNumber:"NSVH-8829", invoiceDate:"2026-08-18", dueDate:"2026-09-17", currency:"AUD",
+    subtotal:1490.91, gst:149.09, amount:1640, status:"Rejected", version:1, date:"18 Aug 2026",
+    lineItems:[{ description:"Emergency consultation", quantity:1, unitPrice:1490.91, gstRate:10, netAmount:1490.91, gstAmount:149.09, grossAmount:1640 }],
+    submittedBy:"North Shore Veterinary Hospital", submittedAt:"2026-08-18T03:15:00.000Z", reviewedBy:"GAP Finance", reviewedAt:"2026-08-18T04:00:00.000Z", reviewComment:"Amount exceeded the authorised work-order limit.",
+  },
+  {
+    id:"INV-8829-V2", workOrder:"WO-2026-1028", practice:"North Shore Veterinary Hospital", supplierId:"SUP-1102",
+    invoiceNumber:"NSVH-8829-V2", invoiceDate:"2026-08-21", dueDate:"2026-09-20", currency:"AUD",
+    subtotal:1400, gst:140, amount:1540, status:"Submitted", version:2, date:"21 Aug 2026",
+    lineItems:[{ description:"Revised emergency consultation", quantity:1, unitPrice:1400, gstRate:10, netAmount:1400, gstAmount:140, grossAmount:1540 }],
+    submittedBy:"North Shore Veterinary Hospital", submittedAt:"2026-08-21T01:30:00.000Z",
+  },
 ];
 
 export const seedPractices = [
