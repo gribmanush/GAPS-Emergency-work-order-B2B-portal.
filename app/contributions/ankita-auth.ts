@@ -48,7 +48,7 @@ async function loadProfile(uid: string, email: string): Promise<UserProfile> {
 
   const normalizedEmail = email.trim().toLowerCase();
   const fallback = accounts[normalizedEmail];
-  if (fallback) return { uid, email: normalizedEmail, fullName: fallback.name, phone: "", role: fallback.role };
+  if (fallback) return { uid, email: normalizedEmail, fullName: fallback.name, phone: "", role: fallback.role, practiceName: fallback.practiceName };
 
   return { uid, email: normalizedEmail, fullName: normalizedEmail, phone: "", role: "Veterinary Practice" };
 }

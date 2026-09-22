@@ -56,6 +56,8 @@ export default function PortalApp() {
 
   useEffect(() => {
     const saved = localStorage.getItem("gap-portal-state");
+    // Hydrate the existing browser-local prototype state after the client mounts.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (saved) { try { const p = JSON.parse(saved); setOrders(p.orders || seedOrders); setInvoices(p.invoices || seedInvoices); setIncidentRows(p.incidentRows || seedIncidents); setGreyhoundRows(p.greyhoundRows || greyhoundDirectorySeed); setPracticeRows(p.practiceRows || seedPractices); setNotices(p.notices || []); setAudits(p.audits || []); } catch { } }
   }, []);
   useEffect(() => {
@@ -90,7 +92,7 @@ export default function PortalApp() {
       email: String(fd.get("email")), fullName: `${fd.get("firstName")} ${fd.get("lastName")}`.trim(), phone: String(fd.get("phone")), role,
     };
     const profileData = role === "Veterinary Practice"
-      ? { ...base, licenseNumber: String(fd.get("licenseNumber")), specialty: String(fd.get("specialty")) as UserProfile["specialty"], deaNumber: String(fd.get("deaNumber") || ""), emergencyContact: String(fd.get("emergencyContact")) }
+      ? { ...base, practiceName: String(fd.get("practiceName")), licenseNumber: String(fd.get("licenseNumber")), specialty: String(fd.get("specialty")) as UserProfile["specialty"], deaNumber: String(fd.get("deaNumber") || ""), emergencyContact: String(fd.get("emergencyContact")) }
       : { ...base, employeeId: String(fd.get("employeeId")), jobTitle: String(fd.get("jobTitle")) as UserProfile["jobTitle"], branch: String(fd.get("branch")) };
     try { await signUp(profileData, password); }
     catch (err) { setToast(friendlyAuthError(err)); }
@@ -124,9 +126,9 @@ export default function PortalApp() {
       </header>
       <main>
         <div className="crumb">GAP Emergency Portal <span>/</span> {nav.find(x => x[0] === route)?.[2]}</div>
-        {route === "dashboard" && <Dashboard role={session.role} orders={orders} invoices={invoices} setRoute={setRoute} setModal={setModal} />}
+        {route === "dashboard" && <Dashboard role={session.role} practiceName={session.practiceName} orders={orders} invoices={invoices} setRoute={setRoute} setModal={setModal} />}
         {route === "incidents" && <Incidents rows={incidentRows} readOnly={isReadOnly} setModal={setModal} />}
-        {route === "work-orders" && !selectedOrder && <WorkOrders orders={orders} search={search} role={session.role} setSelected={setSelectedOrder} setModal={setModal} />}
+        {route === "work-orders" && !selectedOrder && <WorkOrders orders={orders} search={search} role={session.role} practiceName={session.practiceName} setSelected={setSelectedOrder} setModal={setModal} />}
         {route === "work-orders" && selectedOrder && <OrderDetail order={selectedOrder} role={session.role} back={() => setSelectedOrder(null)} transition={transition} setModal={setModal} />}
         {route === "greyhounds" && <Greyhounds rows={greyhoundRows} readOnly={isReadOnly} setModal={setModal} />}
         {route === "practices" && <Practices rows={practiceRows} role={session.role} setModal={setModal} />}

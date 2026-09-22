@@ -15,6 +15,7 @@ export type UserProfile = {
   phone: string;
   role: Role;
   // Veterinary Practice only
+  practiceName?: string;
   licenseNumber?: string;
   specialty?: VetSpecialty;
   deaNumber?: string;
@@ -39,10 +40,10 @@ export const roles: Role[] = ["GAP Administrator", "GAP Case Manager", "Veterina
 // Fallback role lookup for accounts created directly in the Firebase console
 // (e.g. demo accounts) rather than through the app's sign-up form, which has
 // no Firestore profile document to read a role from otherwise.
-export const accounts: Record<string, { role: Role; name: string }> = {
+export const accounts: Record<string, { role: Role; name: string; practiceName?: string }> = {
   "admin@gap-demo.nsw": { role: "GAP Administrator", name: "Alex Morgan" },
   "manager@gap-demo.nsw": { role: "GAP Case Manager", name: "Jordan Lee" },
-  "vet@gap-demo.nsw": { role: "Veterinary Practice", name: "Dr Mia Chen" },
+  "vet@gap-demo.nsw": { role: "Veterinary Practice", name: "Dr Mia Chen", practiceName: "Sydney Animal Emergency" },
   "finance@gap-demo.nsw": { role: "Finance Approver", name: "Sam Taylor" },
   "auditor@grnsw-demo.nsw": { role: "GRNSW Auditor", name: "Chris Patel" },
 };

@@ -9,14 +9,17 @@ import { PageHead } from "../../shared/PageHead";
 import { badge, money, Role, WorkOrder } from "../../shared/types";
 import { downloadCsv } from "../../shared/csv";
 
-export function WorkOrders({ orders, search, role, setSelected, setModal }: { orders: WorkOrder[]; search: string; role: Role; setSelected: (o: WorkOrder) => void; setModal: (m: string) => void }) {
+export function WorkOrders({ orders, search, role, practiceName, setSelected, setModal }: { orders: WorkOrder[]; search: string; role: Role; practiceName?: string; setSelected: (o: WorkOrder) => void; setModal: (m: string) => void }) {
   const [filter, setFilter] = useState("All");
-  const list = orders.filter(o => (filter === "All" || o.status === filter) && JSON.stringify(o).toLowerCase().includes(search.toLowerCase()));
+  const roleScopedOrders = role === "Veterinary Practice"
+    ? practiceName ? orders.filter(order => order.practice === practiceName) : []
+    : orders;
+  const list = roleScopedOrders.filter(o => (filter === "All" || o.status === filter) && JSON.stringify(o).toLowerCase().includes(search.toLowerCase()));
   return <>
     <PageHead eyebrow="EMERGENCY CARE" title="Work orders" subtitle="Assign, monitor and review emergency veterinary work" action={!(["Veterinary Practice", "GRNSW Auditor"] as Role[]).includes(role) ? "Create work order" : undefined} onAction={() => setModal("work-order")} />
     <div className="toolbar">
       <div className="filter-tabs">{["All", "Draft", "Awaiting Acknowledgement", "In Progress", "Completed by Vet", "Declined"].map(f => <button className={filter === f ? "active" : ""} key={f} onClick={() => setFilter(f)}>{f}</button>)}</div>
-      <button className="secondary" onClick={() => downloadCsv("work-orders.csv", orders)}>⇩ Export CSV</button>
+      <button className="secondary" onClick={() => downloadCsv("work-orders.csv", roleScopedOrders)}>⇩ Export CSV</button>
     </div>
     <div className="table-card">
       <table>

@@ -7,7 +7,7 @@ As of 24 August 2026 the UI was refactored out of a single shared file (`app/por
 | Team member | Jira child items | Owned feature files | Helper/logic file | Jira status observed |
 |---|---|---|---|---|
 | Ankita Basnet | TJ-26 Sign in/Sign up; TJ-27 Forgot Password | `app/features/auth/Auth.tsx` | `app/contributions/ankita-auth.ts` | Done; Done |
-| Aanay Vartak | TJ-28 GAP Admin Dashboard; TJ-29 Vet Dashboard | `app/features/dashboard/Dashboard.tsx` | `app/contributions/aanay-dashboards.ts` | To Do; To Do |
+| Aanay Vartak | TJ-28 GAP Admin Dashboard; TJ-29 Vet Dashboard | `app/features/dashboard/Dashboard.tsx` | `app/contributions/aanay-dashboards.ts` | In Review; In Review |
 | Jubayer Alam | TJ-30 Emergency Work Order Form; TJ-34 Tax Invoice | `app/features/work-orders/*.tsx`, `app/features/invoices/*.tsx`, plus the app shell (`app/portal-app.tsx`, `app/layout.tsx`, `app/page.tsx`) and shared UI (`app/shared/*`) | `app/contributions/jubayer-workflows.ts` | Done; Done |
 | Arjun Singh | TJ-35 Greyhounds | `app/features/greyhounds/*.tsx` | `app/contributions/arjun-greyhounds.ts` | Done |
 | MUHAIMINUL CHOUDHURY | No TJ-25 child item assigned | None yet | `app/contributions/muhaimin-assignment-needed.ts` | Assignment required |
@@ -15,6 +15,8 @@ As of 24 August 2026 the UI was refactored out of a single shared file (`app/por
 Screens with no named owner (Incidents, Veterinary Practices, Notifications, Reports, Audit Log, User Administration, Settings, Help — under `app/features/misc/`) are bundled with Jubayer's app-shell setup for now because no TJ-25 child item currently assigns them to a specific person. Reassign as needed once Jira has an owner for each.
 
 **Correction (25 Aug 2026):** an earlier pass of this index had the Greyhounds ownership backwards. The team confirmed Arjun built TJ-35 (Greyhounds), and Muhaimin has not yet been assigned or has not yet implemented a TJ-25 child item.
+
+**Dashboard rebuild:** TJ-28 and TJ-29 were rebuilt from current main on `feature/TJ-28-TJ-29-dashboard-rebuild`. Metrics are calculated from current records, veterinary data is scoped by the authenticated profile's practice name, missing practice identity fails closed, and four dashboard tests cover role-specific behaviour.
 
 ## Evidence protocol
 
