@@ -1,15 +1,31 @@
 "use client";
 
+import { useState } from "react";
 import { PageHead } from "../../shared/PageHead";
-import { Notice } from "../../shared/types";
+import type { Notice } from "../../shared/types";
 
-export function Notifications({ notices, setNotices }: { notices: Notice[]; setNotices: (n: Notice[]) => void }) {
+export function Notifications({ notices, setNotices, onOpen }: {
+  notices: Notice[];
+  setNotices: (notices: Notice[]) => void;
+  onOpen: (notice: Notice) => void;
+}) {
+  const [filter, setFilter] = useState<"All" | "Unread">("All");
+  const displayed = filter === "Unread" ? notices.filter(notice => !notice.read) : notices;
+
+  function openNotice(notice: Notice) {
+    setNotices(notices.map(item => item.id === notice.id ? { ...item, read: true } : item));
+    onOpen(notice);
+  }
+
   return <>
-    <PageHead title="Notifications" subtitle="Operational updates requiring your attention" />
+    <PageHead eyebrow="UPDATES" title="Notifications" subtitle="Assignments, status changes, invoice decisions and emergency updates" />
     <div className="toolbar">
-      <span>{notices.filter(n => !n.read).length} unread</span>
-      <button className="secondary" onClick={() => setNotices(notices.map(n => ({ ...n, read: true })))}>Mark all as read</button>
+      <div className="filter-tabs">{(["All", "Unread"] as const).map(item => <button className={filter === item ? "active" : ""} key={item} onClick={() => setFilter(item)}>{item}</button>)}</div>
+      <div className="action-row"><span>{notices.filter(notice => !notice.read).length} unread</span><button className="secondary" disabled={!notices.some(notice => !notice.read)} onClick={() => setNotices(notices.map(notice => ({ ...notice, read: true })))}>Mark all as read</button></div>
     </div>
-    <div className="notification-list">{notices.map(n => <button key={n.id} className={n.read ? "read" : ""} onClick={() => setNotices(notices.map(x => x.id === n.id ? { ...x, read: true } : x))}><i /><div><b>{n.text}</b><span>{n.time}</span></div><em>View record →</em></button>)}</div>
+    <div className="notification-list">{displayed.map(notice => <button key={notice.id} className={notice.read ? "read" : ""} onClick={() => openNotice(notice)}>
+      <i /><div><b>{notice.text}</b><span>{notice.category || "Operational update"} · {notice.time}{notice.recordId ? ` · ${notice.recordId}` : ""}</span></div><em>{notice.route ? "Open record →" : "Read"}</em>
+    </button>)}</div>
+    {!displayed.length ? <div className="empty"><b>No {filter.toLowerCase()} notifications</b><span>New workflow events will appear here.</span></div> : null}
   </>;
 }

@@ -27,6 +27,7 @@ import { Help } from "./features/misc/Help";
 import { auth, friendlyAuthError, isStrongPassword, loadProfile, requestPasswordReset, signIn, signOutUser, signUp } from "./contributions/ankita-auth";
 import { createEmergencyWorkOrder, createTaxInvoice } from "./contributions/jubayer-workflows";
 import { createGreyhoundRecord, greyhoundDirectorySeed } from "./contributions/arjun-greyhounds";
+import { createEmergencyIncidentRow, createPortalNotice, createVeterinaryPracticeRow, visibleNotices } from "./contributions/aanay-sprint4";
 
 export default function PortalApp() {
   const [session, setSession] = useState<UserProfile | null>(null);
@@ -38,10 +39,10 @@ export default function PortalApp() {
   const [greyhoundRows, setGreyhoundRows] = useState<string[][]>(greyhoundDirectorySeed);
   const [practiceRows, setPracticeRows] = useState<string[][]>(seedPractices);
   const [notices, setNotices] = useState<Notice[]>([
-    { id: 1, text: "WO-2026-1041 is awaiting acknowledgement", time: "28 min ago", read: false },
-    { id: 2, text: "Veterinary work completed for WO-2026-1039", time: "1 hr ago", read: false },
-    { id: 3, text: "INV-8841 was submitted for review", time: "2 hrs ago", read: false },
-    { id: 4, text: "WO-2026-1036 was declined and needs reassignment", time: "2 hrs ago", read: true },
+    { id: 1, text: "WO-2026-1041 is awaiting acknowledgement", time: "28 min ago", read: false, category: "Assignment", route: "work-orders", recordId: "WO-2026-1041", audience: ["Veterinary Practice"] },
+    { id: 2, text: "Veterinary work completed for WO-2026-1039", time: "1 hr ago", read: false, category: "Work order", route: "work-orders", recordId: "WO-2026-1039", audience: ["GAP Administrator", "GAP Case Manager"] },
+    { id: 3, text: "INV-8841 was submitted for review", time: "2 hrs ago", read: false, category: "Invoice", route: "invoices", recordId: "INV-8841", audience: ["GAP Administrator", "Finance Approver"] },
+    { id: 4, text: "WO-2026-1036 was declined and needs reassignment", time: "2 hrs ago", read: true, category: "Work order", route: "work-orders", recordId: "WO-2026-1036", audience: ["GAP Administrator", "GAP Case Manager"] },
   ]);
   const [audits, setAudits] = useState<Audit[]>([
     { id: 1, time: "21 Aug 2026, 11:16", user: "Dr Mia Chen", role: "Veterinary Practice", action: "Completed veterinary work", record: "WO-2026-1039" },
@@ -72,7 +73,7 @@ export default function PortalApp() {
   useEffect(() => { if (toast) { const t = setTimeout(() => setToast(""), 3200); return () => clearTimeout(t); } }, [toast]);
 
   const log = (action: string, record: string) => setAudits(a => [{ id: Date.now(), time: new Date().toLocaleString("en-AU"), user: session?.fullName || "Demo user", role: session?.role || "System", action, record }, ...a]);
-  const notify = (text: string) => setNotices(n => [{ id: Date.now(), text, time: "Just now", read: false }, ...n]);
+  const notify = (input: Parameters<typeof createPortalNotice>[0]) => setNotices(current => [createPortalNotice(input), ...current]);
   const isReadOnly = session?.role === "GRNSW Auditor";
   const visibleNav = nav.filter(([id]) => !restricted[id] || restricted[id].includes(session?.role as Role));
 
@@ -103,10 +104,17 @@ export default function PortalApp() {
     catch (err) { setToast(friendlyAuthError(err)); }
   }
   function changeRole(role: Role) { if (!session) return; setSession({ ...session, role }); setRoute("dashboard"); setToast(`Prototype role changed to ${role}`); }
-  function transition(order: WorkOrder, status: string) { setOrders(os => os.map(o => o.id === order.id ? { ...o, status, updated: "Just now" } : o)); setSelectedOrder({ ...order, status, updated: "Just now" }); log(`Status changed to ${status}`, order.id); notify(`${order.id} is now ${status}`); setToast(`${order.id} updated`); }
+  function transition(order: WorkOrder, status: string) {
+    setOrders(os => os.map(o => o.id === order.id ? { ...o, status, updated: "Just now" } : o));
+    setSelectedOrder({ ...order, status, updated: "Just now" });
+    log(`Status changed to ${status}`, order.id);
+    notify({ text: `${order.id} is now ${status}`, category: "Work order", route: "work-orders", recordId: order.id, audience: ["GAP Administrator", "GAP Case Manager", "Veterinary Practice"] });
+    setToast(`${order.id} updated`);
+  }
 
   if (screen !== "app" || !session) return <Auth screen={screen} setScreen={setScreen} login={login} signup={signup} forgotPassword={forgotPassword} toast={toast} />;
-  const unread = notices.filter(n => !n.read).length;
+  const roleNotices = visibleNotices(notices, session.role);
+  const unread = roleNotices.filter(n => !n.read).length;
 
   return <div className={`portal ${collapsed ? "collapsed" : ""}`}>
     <aside className="sidebar" aria-label="Primary navigation">
@@ -127,13 +135,13 @@ export default function PortalApp() {
       <main>
         <div className="crumb">GAP Emergency Portal <span>/</span> {nav.find(x => x[0] === route)?.[2]}</div>
         {route === "dashboard" && <Dashboard role={session.role} practiceName={session.practiceName} orders={orders} invoices={invoices} setRoute={setRoute} setModal={setModal} />}
-        {route === "incidents" && <Incidents rows={incidentRows} readOnly={isReadOnly} setModal={setModal} />}
+        {route === "incidents" && <Incidents rows={incidentRows} canCreate={["GAP Administrator", "GAP Case Manager"].includes(session.role)} setModal={setModal} />}
         {route === "work-orders" && !selectedOrder && <WorkOrders orders={orders} search={search} role={session.role} practiceName={session.practiceName} setSelected={setSelectedOrder} setModal={setModal} />}
         {route === "work-orders" && selectedOrder && <OrderDetail order={selectedOrder} role={session.role} back={() => setSelectedOrder(null)} transition={transition} setModal={setModal} />}
         {route === "greyhounds" && <Greyhounds rows={greyhoundRows} readOnly={isReadOnly} setModal={setModal} />}
         {route === "practices" && <Practices rows={practiceRows} role={session.role} setModal={setModal} />}
-        {route === "invoices" && <Invoices invoices={invoices} role={session.role} update={(id, status) => { setInvoices(xs => xs.map(x => x.id === id ? { ...x, status } : x)); log(`${status} invoice`, id); notify(`${id} is now ${status}`); setToast(`${id}: ${status}`); }} setModal={setModal} />}
-        {route === "notifications" && <Notifications notices={notices} setNotices={setNotices} />}
+        {route === "invoices" && <Invoices invoices={invoices} role={session.role} update={(id, status) => { setInvoices(xs => xs.map(x => x.id === id ? { ...x, status } : x)); log(`${status} invoice`, id); notify({ text: `${id} is now ${status}`, category: "Invoice", route: "invoices", recordId: id, audience: ["GAP Administrator", "Finance Approver", "Veterinary Practice"] }); setToast(`${id}: ${status}`); }} setModal={setModal} />}
+        {route === "notifications" && <Notifications notices={roleNotices} setNotices={(updated) => setNotices(current => current.map(existing => updated.find(item => item.id === existing.id) || existing))} onOpen={(notice) => { if (notice.route) setRoute(notice.route); if (notice.route === "work-orders" && notice.recordId) setSelectedOrder(orders.find(order => order.id === notice.recordId) || null); }} />}
         {route === "reports" && <Reports orders={orders} invoices={invoices} />}
         {route === "audit" && <AuditLog rows={audits} />}
         {route === "users" && <Users />}
@@ -141,12 +149,12 @@ export default function PortalApp() {
         {route === "help" && <Help setToast={setToast} />}
       </main>
     </div>
-    {modal && <Modal type={modal} close={() => setModal(null)} submit={(data) => {
-      if (modal === "work-order") { const next = createEmergencyWorkOrder(data, 1045 + orders.length) as WorkOrder; setOrders(o => [next, ...o]); log("Created work order", next.id); notify(`${next.id} was created`); }
-      if (modal === "invoice") { const next = createTaxInvoice(data, 8850 + invoices.length) as Invoice; setInvoices(i => [next, ...i]); log("Submitted invoice", next.id); notify(`${next.id} was submitted for finance review`); }
-      if (modal === "incident") { const id = `INC-2026-${91 + incidentRows.length}`; setIncidentRows(r => [[id, new Date().toLocaleString("en-AU"), String(data.type), `${data.suburb} NSW`, "1", String(data.priority), "Draft"], ...r]); log("Created emergency incident", id); }
+    {modal && <Modal type={modal} close={() => setModal(null)} formContext={{ practices: practiceRows, incidents: incidentRows }} submit={(data) => {
+      if (modal === "work-order") { const next = createEmergencyWorkOrder(data, 1045 + orders.length) as WorkOrder; setOrders(o => [next, ...o]); log("Created work order", next.id); notify({ text: `${next.id} was assigned to ${next.practice}`, category: "Assignment", route: "work-orders", recordId: next.id, audience: ["Veterinary Practice", "GAP Administrator", "GAP Case Manager"] }); }
+      if (modal === "invoice") { const next = createTaxInvoice(data, 8850 + invoices.length) as Invoice; setInvoices(i => [next, ...i]); log("Submitted invoice", next.id); notify({ text: `${next.id} was submitted for finance review`, category: "Invoice", route: "invoices", recordId: next.id, audience: ["GAP Administrator", "Finance Approver", "Veterinary Practice"] }); }
+      if (modal === "incident") { const id = `INC-2026-${91 + incidentRows.length}`; const next = createEmergencyIncidentRow(data, id); setIncidentRows(rows => [next, ...rows]); log("Created emergency incident", id); notify({ text: `${id} was created as a draft emergency case`, category: "Emergency", route: "incidents", recordId: id, audience: ["GAP Administrator", "GAP Case Manager"] }); }
       if (modal === "greyhound") { const record = createGreyhoundRecord(data); setGreyhoundRows(r => [record, ...r]); log("Added greyhound", record[0]); }
-      if (modal === "practice") { const name = String(data.tradingName || data.legalName); setPracticeRows(r => [[name, "Pending", "Inactive", String(data.coverage), "Not mapped", "—"], ...r]); log("Registered veterinary practice", name); }
+      if (modal === "practice") { const next = createVeterinaryPracticeRow(data); setPracticeRows(rows => [next, ...rows]); log("Registered veterinary practice", next[0]); notify({ text: `${next[0]} was registered with ${next[3]} approval status`, category: "Account", route: "practices", recordId: next[0], audience: ["GAP Administrator", "GAP Case Manager"] }); }
       setModal(null); setToast("Saved successfully");
     }} />}
     {toast ? <div className={`toast ${toast.includes("incorrect") ? "error" : ""}`} role="status">{toast}</div> : null}

@@ -32,7 +32,16 @@ export type WorkOrder = {
 };
 
 export type Invoice = { id: string; workOrder: string; practice: string; amount: number; status: string; version: number; date: string };
-export type Notice = { id: number; text: string; time: string; read: boolean };
+export type Notice = {
+  id: number;
+  text: string;
+  time: string;
+  read: boolean;
+  category?: "Assignment" | "Work order" | "Invoice" | "Emergency" | "Account";
+  route?: string;
+  recordId?: string;
+  audience?: Role[];
+};
 export type Audit = { id: number; time: string; user: string; role: string; action: string; record: string };
 
 export const roles: Role[] = ["GAP Administrator", "GAP Case Manager", "Veterinary Practice", "Finance Approver", "GRNSW Auditor"];

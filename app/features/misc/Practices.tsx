@@ -7,7 +7,7 @@ export function Practices({ rows, role, setModal }: { rows: string[][]; role: Ro
   return <Directory
     title="Veterinary practices"
     subtitle="Approved emergency veterinary network"
-    heads={["Practice", "Approval", "Operations", "Coverage", "Supplier reference", "Avg. response"]}
+    heads={["Practice", "Veterinary contact", "Registration", "Approval", "Operations", "Coverage", "Supplier reference", "Avg. response"]}
     rows={rows}
     action={role === "GAP Administrator" ? "Register practice" : undefined}
     onAction={() => setModal("practice")}

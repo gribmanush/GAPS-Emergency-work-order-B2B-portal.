@@ -18,6 +18,19 @@ Screens with no named owner (Incidents, Veterinary Practices, Notifications, Rep
 
 **Dashboard rebuild:** TJ-28 and TJ-29 were rebuilt from current main on `feature/TJ-28-TJ-29-dashboard-rebuild`. Metrics are calculated from current records, veterinary data is scoped by the authenticated profile's practice name, missing practice identity fails closed, and four dashboard tests cover role-specific behaviour.
 
+## Aanay Sprint 4 assignment evidence
+
+The Jira screenshot supplied on 22 September 2026 shows TJ-51, TJ-75, TJ-76, TJ-77, TJ-91 and TJ-94 assigned to Aanay. The combined branch `feature/aanay-sprint4-assigned-tasks` contains the dashboard parent commit plus the remaining workflow implementation.
+
+| Jira item | Implemented evidence |
+|---|---|
+| TJ-51 | Practice-scoped veterinary task management, priority sorting, status totals and filters |
+| TJ-75 | Role-audience notifications, unread controls and record navigation |
+| TJ-76 | Veterinary registration with identity, approval and assignment eligibility |
+| TJ-77 | Authorised emergency-case form and traceable Draft incident creation |
+| TJ-91 | Role-aware GAP staff and veterinary dashboards |
+| TJ-94 | Four automated dashboard tests plus five Sprint 4 workflow tests |
+
 ## Evidence protocol
 
 These files are organised contribution targets, not automatic proof that a named person authored the code. Each owner should:

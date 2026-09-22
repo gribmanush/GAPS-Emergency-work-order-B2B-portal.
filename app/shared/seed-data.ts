@@ -17,11 +17,11 @@ export const seedInvoices: Invoice[] = [
 ];
 
 export const seedPractices = [
-  ["Sydney Animal Emergency","Approved","Active","24-hour","SUP-1048","18 min"],
-  ["North Shore Veterinary Hospital","Approved","Active","24-hour","SUP-1102","24 min"],
-  ["Western Sydney Vet Care","Approved","Active","Extended","SUP-1176","31 min"],
-  ["Inner West Animal Hospital","Approved","Active","Extended","SUP-1208","42 min"],
-  ["Harbour Veterinary Centre","Pending","Inactive","Business hours","Not mapped","—"],
+  ["Sydney Animal Emergency","Dr Mia Chen","VET-NSW-1048","Approved","Active","24-hour","SUP-1048","18 min"],
+  ["North Shore Veterinary Hospital","Dr Alex Wong","VET-NSW-1102","Approved","Active","24-hour","SUP-1102","24 min"],
+  ["Western Sydney Vet Care","Dr Taylor Singh","VET-NSW-1176","Approved","Active","Extended","SUP-1176","31 min"],
+  ["Inner West Animal Hospital","Dr Jordan Lee","VET-NSW-1208","Approved","Active","Extended","SUP-1208","42 min"],
+  ["Harbour Veterinary Centre","Dr Casey Morgan","VET-NSW-1290","Pending","Inactive","Business hours","Not mapped","—"],
 ];
 
 export const seedIncidents = [
