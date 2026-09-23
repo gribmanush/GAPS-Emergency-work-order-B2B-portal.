@@ -72,7 +72,7 @@ export function Auth({
       <p>Sign in to your authorised internal account.</p>
       <form onSubmit={login}>
         <label>Email address<input name="email" type="email" required autoComplete="username" /></label>
-        <label>Password<input name="password" type="password" required autoComplete="current-password" /></label>
+        <PasswordField label="Password" name="password" autoComplete="current-password" />
         <div className="form-row">
           <label className="check"><input name="remember" type="checkbox" /> Remember me</label>
           <button type="button" className="link-button" onClick={() => setScreen("forgot")}>Forgot password?</button>
@@ -113,9 +113,23 @@ function SignupForm({ onSubmit }: { onSubmit: (e: FormEvent<HTMLFormElement>) =>
       <label className="full">Assigned location / branch<input name="branch" required placeholder="e.g. Head office, Sydney" /></label>
     </>}
 
-    <label>Password<input name="password" type="password" required autoComplete="new-password" /><small>{PASSWORD_REQUIREMENTS}</small></label>
-    <label>Confirm password<input name="confirmPassword" type="password" required autoComplete="new-password" /></label>
+    <PasswordField label="Password" name="password" autoComplete="new-password" hint={PASSWORD_REQUIREMENTS} />
+    <PasswordField label="Confirm password" name="confirmPassword" autoComplete="new-password" />
 
     <button className="primary wide full">Create account</button>
   </form>;
+}
+
+function PasswordField({ label, name, autoComplete, hint }: { label: string; name: string; autoComplete: string; hint?: string }) {
+  const [visible, setVisible] = useState(false);
+
+  return <label>{label}
+    <div className="password-field">
+      <input name={name} type={visible ? "text" : "password"} required autoComplete={autoComplete} />
+      <button type="button" className="password-toggle" onClick={() => setVisible(v => !v)} aria-pressed={visible}>
+        {visible ? "Hide" : "Show"}
+      </button>
+    </div>
+    {hint ? <small>{hint}</small> : null}
+  </label>;
 }
