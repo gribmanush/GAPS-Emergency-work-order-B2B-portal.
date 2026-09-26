@@ -25,9 +25,9 @@ export function buildDashboardMetrics(
 
   const veterinaryView = role === "Veterinary Practice";
   return [
-    [veterinaryView ? "New assignments" : "Open emergencies", orders.filter((item) => !["Closed", "Cancelled"].includes(item.status)).length, "work-orders", null],
-    ["Awaiting acknowledgement", orders.filter((item) => item.status === "Awaiting Acknowledgement").length, "work-orders", null],
-    ["Active treatments", orders.filter((item) => item.status === "In Progress").length, "work-orders", null],
-    ["Needs action", orders.filter((item) => ["Declined", "Completed by Vet"].includes(item.status)).length, "work-orders", null],
+    [veterinaryView ? "New assignments" : "Open emergencies", orders.filter((item) => item.status !== "Closed").length, "work-orders", null],
+    ["Awaiting acceptance", orders.filter((item) => item.status === "Work Order Created and Assigned").length, "work-orders", null],
+    ["Active treatments", orders.filter((item) => item.status === "Treatment in Progress").length, "work-orders", null],
+    ["Needs GAP review", orders.filter((item) => item.status === "Veterinary Work Completed" || item.status === "GAP Review").length, "work-orders", null],
   ] as const;
 }

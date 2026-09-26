@@ -17,7 +17,7 @@ import {
 } from "firebase/auth";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { auth, db } from "../lib/firebase";
-import { accounts, UserProfile } from "../shared/types";
+import { accounts, ROLE_COLLECTIONS, UserProfile } from "../shared/types";
 
 export const PASSWORD_REQUIREMENTS =
   "At least 8 characters, with an uppercase letter, a lowercase letter, a number and a symbol.";
@@ -43,8 +43,12 @@ export function friendlyAuthError(error: unknown): string {
 }
 
 async function loadProfile(uid: string, email: string): Promise<UserProfile> {
-  const snapshot = await getDoc(doc(db, "users", uid));
-  if (snapshot.exists()) return snapshot.data() as UserProfile;
+  // A signed-up account's profile lives in exactly one of the five role
+  // collections — check all five (the uid tells us nothing about role on its own).
+  const collections = Object.values(ROLE_COLLECTIONS);
+  const snapshots = await Promise.all(collections.map(name => getDoc(doc(db, name, uid))));
+  const found = snapshots.find(snapshot => snapshot.exists());
+  if (found) return found.data() as UserProfile;
 
   const normalizedEmail = email.trim().toLowerCase();
   const fallback = accounts[normalizedEmail];
@@ -64,7 +68,7 @@ export async function signUp(profile: Omit<UserProfile, "uid">, password: string
   const credential = await createUserWithEmailAndPassword(auth, profile.email.trim().toLowerCase(), password);
   await updateProfile(credential.user, { displayName: profile.fullName });
   const fullProfile: UserProfile = { ...profile, email: profile.email.trim().toLowerCase(), uid: credential.user.uid };
-  await setDoc(doc(db, "users", credential.user.uid), fullProfile);
+  await setDoc(doc(db, ROLE_COLLECTIONS[fullProfile.role], credential.user.uid), fullProfile);
   return fullProfile;
 }
 

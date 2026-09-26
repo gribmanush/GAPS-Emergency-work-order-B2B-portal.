@@ -5,6 +5,8 @@ import { GenericForm } from "./GenericForm";
 import { WorkOrderForm } from "../features/work-orders/WorkOrderForm";
 import { InvoiceForm } from "../features/invoices/InvoiceForm";
 import { GreyhoundForm } from "../features/greyhounds/GreyhoundForm";
+import type { Invoice, WorkOrder } from "./types";
+import type { VetDirectoryEntry } from "../lib/vet-directory";
 
 const titles: Record<string, string> = {
   "work-order": "Create emergency work order",
@@ -14,7 +16,7 @@ const titles: Record<string, string> = {
   practice: "Register veterinary practice",
 };
 
-export function Modal({ type, close, submit }: { type: string; close: () => void; submit: (d: Record<string, FormDataEntryValue>) => void }) {
+export function Modal({ type, close, submit, invoiceContext, vets }: { type: string; close: () => void; submit: (d: Record<string, FormDataEntryValue>) => void; invoiceContext?: { orders: WorkOrder[]; invoices: Invoice[]; practice?: string }; vets?: VetDirectoryEntry[] }) {
   function go(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     submit(Object.fromEntries(new FormData(e.currentTarget)));
@@ -26,7 +28,7 @@ export function Modal({ type, close, submit }: { type: string; close: () => void
         <button onClick={close} aria-label="Close">×</button>
       </div>
       <form onSubmit={go}>
-        {type === "work-order" ? <WorkOrderForm /> : type === "invoice" ? <InvoiceForm /> : type === "greyhound" ? <GreyhoundForm /> : <GenericForm type={type} />}
+        {type === "work-order" ? <WorkOrderForm vets={vets || []} /> : type === "invoice" && invoiceContext ? <InvoiceForm {...invoiceContext} /> : type === "greyhound" ? <GreyhoundForm /> : <GenericForm type={type} />}
         <div className="modal-actions">
           <button type="button" className="secondary" onClick={close}>Cancel</button>
           <button className="primary">Save record</button>
