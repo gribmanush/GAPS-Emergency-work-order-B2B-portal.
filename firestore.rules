@@ -1,0 +1,110 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+
+    function isInRole(collectionName) {
+      return signedIn() && exists(/databases/$(database)/documents/$(collectionName)/$(request.auth.uid));
+    }
+    function isGapAdmin() { return isInRole('gapAdministrators'); }
+    function isGapCaseManager() { return isInRole('gapCaseManagers'); }
+    function isFinanceApprover() { return isInRole('financeApprovers'); }
+    function isAuditor() { return isInRole('grnswAuditors'); }
+    function isVet() { return isInRole('veterinaryPractices'); }
+    function isGapStaff() { return isGapAdmin() || isGapCaseManager() || isFinanceApprover() || isAuditor(); }
+    function myPractice() {
+      return get(/databases/$(database)/documents/veterinaryPractices/$(request.auth.uid)).data.practice;
+    }
+
+    // ---- Role profiles: one collection per role, each account owns exactly
+    // one document across all five, keyed by their own uid. ----
+    match /gapAdministrators/{uid} {
+      allow read, create, update: if signedIn() && request.auth.uid == uid;
+      allow delete: if false;
+    }
+    match /gapCaseManagers/{uid} {
+      allow read, create, update: if signedIn() && request.auth.uid == uid;
+      allow delete: if false;
+    }
+    match /financeApprovers/{uid} {
+      allow read, create, update: if signedIn() && request.auth.uid == uid;
+      allow delete: if false;
+    }
+    match /grnswAuditors/{uid} {
+      allow read, create, update: if signedIn() && request.auth.uid == uid;
+      allow delete: if false;
+    }
+    match /veterinaryPractices/{uid} {
+      // GAP staff also need to list every vet, to assign/reassign work orders to one.
+      allow read: if signedIn() && (request.auth.uid == uid || isGapStaff());
+      allow create, update: if signedIn() && request.auth.uid == uid;
+      allow delete: if false;
+    }
+
+    // ---- Work orders: a vet only ever sees/acts on their own assignment;
+    // GAP staff have full visibility and are the only ones who can create one. ----
+    match /workOrders/{orderId} {
+      allow read: if isGapStaff() || (isVet() && resource.data.assignedVetUid == request.auth.uid);
+      allow create: if isGapStaff()
+        && request.resource.data.status == 'Work Order Created and Assigned'
+        && request.resource.data.assignedVetUid is string;
+      allow update: if isGapStaff()
+        || (isVet() && resource.data.assignedVetUid == request.auth.uid);
+      allow delete: if false;
+    }
+
+    // ---- Invoices: a vet only sees their own practice's invoices and may
+    // submit new ones for it; only GAP staff review (approve/reject) them. ----
+    match /invoices/{invoiceId} {
+      allow read: if isGapStaff() || (isVet() && resource.data.practice == myPractice());
+      allow create: if isVet() && request.resource.data.practice == myPractice() && request.resource.data.status == 'Submitted';
+      allow update: if isGapStaff();
+      allow delete: if false;
+    }
+
+    // ---- Incidents & practice directory management: staff tools, matching
+    // the in-app nav restrictions (Finance Approver never sees Incidents). ----
+    match /incidents/{incidentId} {
+      allow read: if isGapAdmin() || isGapCaseManager() || isAuditor();
+      allow create, update: if isGapAdmin() || isGapCaseManager();
+      allow delete: if false;
+    }
+
+    // Practice directory is intentionally public to read (even signed out) —
+    // the sign-up form needs it to populate a vet's practice dropdown before
+    // that person has an account. Only an Administrator can register one.
+    match /practices/{practiceId} {
+      allow read: if true;
+      allow create, update: if isGapAdmin();
+      allow delete: if false;
+    }
+
+    // ---- Greyhound directory: visible to every signed-in role; anyone
+    // except the read-only Auditor role can add a record. ----
+    match /greyhounds/{greyhoundId} {
+      allow read: if signedIn();
+      allow create, update: if signedIn() && !isAuditor();
+      allow delete: if false;
+    }
+
+    // ---- Notifications: personally addressed to one uid, or visible to any
+    // GAP staff role for everything else. ----
+    match /notifications/{noticeId} {
+      allow read: if isGapStaff() || resource.data.recipientUid == request.auth.uid;
+      allow create: if signedIn();
+      allow update: if isGapStaff() || resource.data.recipientUid == request.auth.uid;
+      allow delete: if false;
+    }
+
+    // ---- Audit log: append-only, readable only by the two oversight roles. ----
+    match /auditLog/{entryId} {
+      allow read: if isGapAdmin() || isAuditor();
+      allow create: if signedIn();
+      allow update, delete: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

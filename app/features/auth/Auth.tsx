@@ -6,10 +6,10 @@
 
 import { FormEvent, useState } from "react";
 import { PASSWORD_REQUIREMENTS } from "../../contributions/ankita-auth";
-import { Role, roles, staffJobTitles, vetSpecialties } from "../../shared/types";
+import { Role, roles, vetSpecialties } from "../../shared/types";
 
 export function Auth({
-  screen, setScreen, login, signup, forgotPassword, toast,
+  screen, setScreen, login, signup, forgotPassword, toast, practices,
 }: {
   screen: string;
   setScreen: (s: string) => void;
@@ -17,6 +17,7 @@ export function Auth({
   signup: (e: FormEvent<HTMLFormElement>) => void;
   forgotPassword: (e: FormEvent<HTMLFormElement>) => void;
   toast: string;
+  practices: string[][];
 }) {
   if (screen === "forgot") return <div className="auth-page">
     <div className="auth-brand"><div className="brand-mark large">G</div><h1>GAP Emergency<br />Veterinary Portal</h1><p>Secure coordination for emergency greyhound care.</p></div>
@@ -52,7 +53,7 @@ export function Auth({
       <div className="mobile-brand">GAP NSW</div>
       <h2>Create account</h2>
       <p>Choose your account type — the fields below adjust to match.</p>
-      <SignupForm onSubmit={signup} />
+      <SignupForm onSubmit={signup} practices={practices} />
       <p className="authorised"><button type="button" className="link-button" onClick={() => setScreen("login")}>← Already have an account? Sign in</button></p>
     </section>
     {toast ? <div className={`toast ${toast.toLowerCase().includes("error") || toast.toLowerCase().includes("match") || toast.toLowerCase().includes("incorrect") ? "error" : ""}`}>{toast}</div> : null}
@@ -87,9 +88,10 @@ export function Auth({
   </div>;
 }
 
-function SignupForm({ onSubmit }: { onSubmit: (e: FormEvent<HTMLFormElement>) => void }) {
+function SignupForm({ onSubmit, practices }: { onSubmit: (e: FormEvent<HTMLFormElement>) => void; practices: string[][] }) {
   const [role, setRole] = useState<Role>("Veterinary Practice");
   const isVet = role === "Veterinary Practice";
+  const activePractices = practices.filter(p => p[1] === "Approved" && p[2] === "Active");
 
   return <form className="form-grid" onSubmit={onSubmit}>
     <label className="full">Account type
@@ -103,13 +105,18 @@ function SignupForm({ onSubmit }: { onSubmit: (e: FormEvent<HTMLFormElement>) =>
     <label>Phone number<input name="phone" type="tel" required /></label>
 
     {isVet ? <>
+      <label className="full">Veterinary practice<small>Which registered practice you work at. Only this practice&rsquo;s assigned work orders will be visible to you.</small>
+        <select name="practice" required disabled={!activePractices.length}>
+          <option value="">{activePractices.length ? "Select your practice" : "No approved practices available yet"}</option>
+          {activePractices.map(p => <option key={p[0]}>{p[0]}</option>)}
+        </select>
+      </label>
       <label className="full">Veterinary licence / registration number<small>The official ID issued by your state or national veterinary board.</small><input name="licenseNumber" required /></label>
       <label>Specialty / primary focus<select name="specialty">{vetSpecialties.map(s => <option key={s}>{s}</option>)}</select></label>
       <label>DEA / controlled substances licence number<small>Optional</small><input name="deaNumber" /></label>
       <label className="full">Emergency contact details<small>For after-hours on-call emergencies.</small><input name="emergencyContact" required placeholder="Name and phone number" /></label>
     </> : <>
       <label>Employee / payroll ID number<input name="employeeId" required /></label>
-      <label>Job title<select name="jobTitle">{staffJobTitles.map(t => <option key={t}>{t}</option>)}</select></label>
       <label className="full">Assigned location / branch<input name="branch" required placeholder="e.g. Head office, Sydney" /></label>
     </>}
 
