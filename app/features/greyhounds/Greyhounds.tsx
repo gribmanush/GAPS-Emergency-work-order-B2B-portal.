@@ -5,8 +5,8 @@
 "use client";
 
 import { Directory } from "../../shared/Directory";
+import { GreyhoundDocuments } from "./GreyhoundDocuments";
 import { MedicalRecords } from "./MedicalRecords";
-
 type GreyhoundsProps = {
   rows: string[][];
   readOnly: boolean;
@@ -45,6 +45,11 @@ export function Greyhounds({
         role={role}
         userName={userName}
       />
+      <GreyhoundDocuments
+  rows={rows}
+  role={role}
+  userName={userName}
+/>
     </>
   );
 }
