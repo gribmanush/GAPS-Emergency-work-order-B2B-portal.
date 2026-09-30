@@ -87,6 +87,23 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    // ---- Medical records & documents: visible to every signed-in role, same
+    // as the greyhound directory itself. Write access at the rules layer is
+    // GAP Admin/Case Manager or any vet — the app additionally restricts a vet
+    // to only the greyhounds they're actually treating (checked against their
+    // own assigned work orders client-side), which isn't practical to
+    // re-derive inside a security rule without denormalising that link here too. ----
+    match /medicalRecords/{recordId} {
+      allow read: if signedIn();
+      allow create, update: if isGapAdmin() || isGapCaseManager() || isVet();
+      allow delete: if false;
+    }
+    match /greyhoundDocuments/{documentId} {
+      allow read: if signedIn();
+      allow create: if isGapAdmin() || isGapCaseManager() || isVet();
+      allow update, delete: if false;
+    }
+
     // ---- Notifications: personally addressed to one uid, or visible to any
     // GAP staff role for everything else. ----
     match /notifications/{noticeId} {

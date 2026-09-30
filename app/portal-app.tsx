@@ -10,7 +10,8 @@ import { FormEvent, useEffect, useState } from "react";
 import { onAuthStateChanged } from "firebase/auth";
 import {
   Role, WorkOrder, WorkOrderStatus, Invoice, Notice, Audit, Incident, Greyhound, Practice, UserProfile,
-  nav, restricted, isWorkOrderInVetWorklist, isVisibleToSession, isNoticeVisible,
+  MedicalRecord, GreyhoundDocument,
+  nav, restricted, isWorkOrderInVetWorklist, isVisibleToSession, isNoticeVisible, canManageGreyhoundRecords,
   incidentToRow, greyhoundToRow, practiceToRow,
 } from "./shared/types";
 import { Modal } from "./shared/Modal";
@@ -40,6 +41,8 @@ import { createGreyhound, subscribeGreyhounds } from "./lib/repositories/greyhou
 import { registerPractice, subscribePractices } from "./lib/repositories/practices";
 import { markAllNotificationsRead, markNotificationRead, subscribeNotifications } from "./lib/repositories/notifications";
 import { logSignIn, subscribeAuditLog } from "./lib/repositories/audit-log";
+import { saveMedicalRecord, subscribeMedicalRecords } from "./lib/repositories/medical-records";
+import { subscribeGreyhoundDocuments, uploadGreyhoundDocument } from "./lib/repositories/greyhound-documents";
 
 function canViewTab(role: Role, tabId: string) {
   return !restricted[tabId] || restricted[tabId].includes(role);
@@ -53,6 +56,8 @@ export default function PortalApp() {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [incidents, setIncidents] = useState<Incident[]>([]);
   const [greyhounds, setGreyhounds] = useState<Greyhound[]>([]);
+  const [medicalRecords, setMedicalRecords] = useState<MedicalRecord[]>([]);
+  const [greyhoundDocuments, setGreyhoundDocuments] = useState<GreyhoundDocument[]>([]);
   const [practices, setPractices] = useState<Practice[]>([]);
   const [notices, setNotices] = useState<Notice[]>([]);
   const [audits, setAudits] = useState<Audit[]>([]);
@@ -111,6 +116,20 @@ export default function PortalApp() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     if (!session) { setGreyhounds([]); return; }
     return subscribeGreyhounds(setGreyhounds, message => setToast(message));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session?.uid]);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (!session) { setMedicalRecords([]); return; }
+    return subscribeMedicalRecords(setMedicalRecords, message => setToast(message));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session?.uid]);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (!session) { setGreyhoundDocuments([]); return; }
+    return subscribeGreyhoundDocuments(setGreyhoundDocuments, message => setToast(message));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session?.uid]);
 
@@ -225,6 +244,8 @@ export default function PortalApp() {
   const visibleNotices = notices.filter(n => isNoticeVisible(session, n));
   const unread = visibleNotices.filter(n => !n.read).length;
   const reviewOrder = reviewOrderId ? orders.find(o => o.id === reviewOrderId) || null : null;
+  const assignedDogNames = Array.from(new Set(worklistOrders.flatMap(o => o.dogs)));
+  const canManageRecords = (petName: string) => canManageGreyhoundRecords(session, petName, assignedDogNames);
 
   return <div className={`portal ${collapsed ? "collapsed" : ""}`}>
     <aside className="sidebar" aria-label="Primary navigation">
@@ -247,7 +268,17 @@ export default function PortalApp() {
         {route === "incidents" && <Incidents rows={incidents.map(incidentToRow)} readOnly={isReadOnly} setModal={setModal} />}
         {route === "work-orders" && !selectedOrder && <WorkOrders orders={worklistOrders} search={search} role={session.role} setSelected={o => setSelectedOrderId(o.id)} setModal={setModal} />}
         {route === "work-orders" && selectedOrder && <OrderDetail order={selectedOrder} role={session.role} back={() => setSelectedOrderId(null)} transition={transition} setModal={setModal} />}
-        {route === "greyhounds" && <Greyhounds rows={greyhounds.map(greyhoundToRow)} readOnly={isReadOnly} setModal={setModal} />}
+        {route === "greyhounds" && <Greyhounds
+          rows={greyhounds.map(greyhoundToRow)}
+          readOnly={isReadOnly}
+          setModal={setModal}
+          userName={session.fullName}
+          medicalRecords={medicalRecords}
+          documents={greyhoundDocuments}
+          canManageRecords={canManageRecords}
+          onSaveMedicalRecord={record => saveMedicalRecord(record, { name: session.fullName, role: session.role })}
+          onUploadDocument={fields => uploadGreyhoundDocument(fields, { name: session.fullName, role: session.role })}
+        />}
         {route === "practices" && <Practices rows={practices.map(practiceToRow)} role={session.role} setModal={setModal} />}
         {route === "invoices" && <Invoices invoices={visibleInvoices} role={session.role} update={async (id, status) => {
           if (!actor) return;
