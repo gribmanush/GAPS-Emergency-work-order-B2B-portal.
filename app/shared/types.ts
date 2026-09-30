@@ -126,6 +126,27 @@ export type Practice = {
   name: string; approval: string; operations: string; coverage: string; supplierRef: string; avgResponse: string;
 };
 
+export type MedicalRecord = {
+  id: string; // document id — the greyhound's GAP reference, one record per greyhound
+  petName: string; visitDate: string; diagnosis: string; treatment: string; medications: string; notes: string;
+  updatedBy: string; updatedAt: string;
+};
+
+export type GreyhoundDocument = {
+  id: string;
+  greyhoundRef: string; title: string; documentType: string; fileName: string; fileData: string;
+  uploadedBy: string; uploadedAt: string;
+};
+
+// A vet may only add/edit a medical record or document for a greyhound they are
+// actually treating right now (named on one of their own assigned work orders).
+// Every GAP staff role except the read-only oversight ones keeps write access.
+export function canManageGreyhoundRecords(session: Pick<UserProfile, "role">, petName: string, assignedDogNames: string[]): boolean {
+  if (session.role === "GAP Administrator" || session.role === "GAP Case Manager") return true;
+  if (session.role === "Veterinary Practice") return assignedDogNames.includes(petName);
+  return false;
+}
+
 // The Directory/Incidents/Greyhounds/Practices UI components render plain
 // string[][] rows — these adapters keep that view layer untouched while the
 // storage layer underneath is fully typed Firestore documents.
@@ -143,6 +164,8 @@ export const DATA_COLLECTIONS = {
   practices: "practices",
   notifications: "notifications",
   auditLog: "auditLog",
+  medicalRecords: "medicalRecords",
+  greyhoundDocuments: "greyhoundDocuments",
 } as const;
 
 export const roles: Role[] = ["GAP Administrator", "GAP Case Manager", "Veterinary Practice", "Finance Approver", "GRNSW Auditor"];
