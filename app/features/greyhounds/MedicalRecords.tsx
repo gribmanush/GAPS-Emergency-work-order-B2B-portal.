@@ -1,128 +1,61 @@
+/**
+ * Team JAM contribution: ANKITA BASNET (TJ-72), rebuilt against Firestore.
+ * Medical record view/edit per greyhound.
+ */
 "use client";
 
-import { useEffect, useState } from "react";
-import type { FormEvent } from "react";
-
-type MedicalRecord = {
-  greyhoundRef: string;
-  petName: string;
-  visitDate: string;
-  diagnosis: string;
-  treatment: string;
-  medications: string;
-  notes: string;
-  updatedBy: string;
-  updatedAt: string;
-};
+import { FormEvent, useState } from "react";
+import { MedicalRecord } from "../../shared/types";
 
 type MedicalRecordsProps = {
   rows: string[][];
-  role: string;
+  records: MedicalRecord[];
+  canManage: (petName: string) => boolean;
+  onSave: (record: MedicalRecord) => Promise<void>;
   userName: string;
 };
 
-const STORAGE_KEY = "gap-medical-records";
-
-function createInitialRecords(rows: string[][]): MedicalRecord[] {
-  return rows.map((row, index) => ({
-    greyhoundRef: row[0] || `GAP-${index + 1}`,
-    petName: row[1] || "Unknown greyhound",
-    visitDate: "2026-08-21",
-    diagnosis: "Routine health assessment",
-    treatment: "Continue clinical monitoring",
-    medications: "None currently prescribed",
-    notes: row[5] || "No current health alerts.",
-    updatedBy: "Dr Mia Chen",
-    updatedAt: "21/08/2026, 10:56 am",
-  }));
+function blankRecord(id: string, petName: string): MedicalRecord {
+  return { id, petName, visitDate: "", diagnosis: "", treatment: "", medications: "", notes: "", updatedBy: "", updatedAt: "" };
 }
 
-export function MedicalRecords({
-  rows,
-  role,
-  userName,
-}: MedicalRecordsProps) {
-  const [records, setRecords] = useState<MedicalRecord[]>(() =>
-    createInitialRecords(rows)
-  );
+export function MedicalRecords({ rows, records, canManage, onSave, userName }: MedicalRecordsProps) {
   const [selectedRef, setSelectedRef] = useState(rows[0]?.[0] || "");
   const [draft, setDraft] = useState<MedicalRecord | null>(null);
   const [message, setMessage] = useState("");
-  const [isReady, setIsReady] = useState(false);
+  const [saving, setSaving] = useState(false);
 
-  const canEdit = role === "Veterinary Practice";
-
-  useEffect(() => {
-    try {
-      const savedRecords = localStorage.getItem(STORAGE_KEY);
-
-      if (savedRecords) {
-        const parsedRecords = JSON.parse(savedRecords);
-
-        if (Array.isArray(parsedRecords)) {
-          setRecords(parsedRecords);
-        }
-      }
-    } catch {
-      setMessage("Saved medical records could not be loaded.");
-    }
-
-    setIsReady(true);
-  }, []);
-
-  useEffect(() => {
-    if (!isReady) return;
-
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
-  }, [records, isReady]);
-
-  const currentRecord = records.find(
-    (record) => record.greyhoundRef === selectedRef
-  );
+  const selectedRow = rows.find(r => r[0] === selectedRef);
+  const currentRecord = records.find(r => r.id === selectedRef) || (selectedRow ? blankRecord(selectedRef, selectedRow[1]) : null);
+  const canEdit = selectedRow ? canManage(selectedRow[1]) : false;
 
   function beginEditing() {
     if (!currentRecord || !canEdit) return;
-
     setDraft({ ...currentRecord });
     setMessage("");
   }
 
   function updateDraft(field: keyof MedicalRecord, value: string) {
-    setDraft((current) =>
-      current ? { ...current, [field]: value } : current
-    );
+    setDraft(current => current ? { ...current, [field]: value } : current);
   }
 
-  function saveRecord(event: FormEvent<HTMLFormElement>) {
+  async function saveRecord(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-
     if (!draft) return;
-
-    if (
-      !draft.visitDate.trim() ||
-      !draft.diagnosis.trim() ||
-      !draft.notes.trim()
-    ) {
+    if (!draft.visitDate.trim() || !draft.diagnosis.trim() || !draft.notes.trim()) {
       setMessage("Visit date, diagnosis and clinical notes are required.");
       return;
     }
-
-    const savedRecord: MedicalRecord = {
-      ...draft,
-      updatedBy: userName || role,
-      updatedAt: new Date().toLocaleString("en-AU"),
-    };
-
-    setRecords((current) =>
-      current.map((record) =>
-        record.greyhoundRef === savedRecord.greyhoundRef
-          ? savedRecord
-          : record
-      )
-    );
-
-    setDraft(null);
-    setMessage("Medical record updated successfully.");
+    setSaving(true);
+    try {
+      await onSave({ ...draft, updatedBy: userName });
+      setDraft(null);
+      setMessage("Medical record updated successfully.");
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : "Could not save this record.");
+    } finally {
+      setSaving(false);
+    }
   }
 
   function cancelEditing() {
@@ -131,164 +64,50 @@ export function MedicalRecords({
   }
 
   return (
-    <section
-      style={{
-        marginTop: "24px",
-        padding: "24px",
-        background: "white",
-        border: "1px solid #dfe3e8",
-        borderRadius: "12px",
-      }}
-    >
+    <section className="panel" style={{ marginTop: 24 }}>
       <h2>Medical records</h2>
       <p>View clinical information and update an existing medical record.</p>
 
-      <label>
-        Select greyhound
-        <select
-          value={selectedRef}
-          onChange={(event) => {
-            setSelectedRef(event.target.value);
-            setDraft(null);
-            setMessage("");
-          }}
-        >
-          {records.map((record) => (
-            <option
-              key={record.greyhoundRef}
-              value={record.greyhoundRef}
-            >
-              {record.greyhoundRef} — {record.petName}
-            </option>
-          ))}
+      <label>Select greyhound
+        <select value={selectedRef} onChange={e => { setSelectedRef(e.target.value); setDraft(null); setMessage(""); }}>
+          {rows.map(row => <option key={row[0]} value={row[0]}>{row[0]} — {row[1]}</option>)}
         </select>
       </label>
 
-      {message && (
-        <p role="status" style={{ marginTop: "16px", fontWeight: 700 }}>
-          {message}
-        </p>
-      )}
+      {message && <p role="status" style={{ marginTop: 16, fontWeight: 700 }}>{message}</p>}
 
       {!currentRecord && <p>No medical record is available.</p>}
 
       {currentRecord && !draft && (
-        <div style={{ marginTop: "20px" }}>
+        <div style={{ marginTop: 20 }}>
           <h3>{currentRecord.petName}</h3>
-
-          <p>
-            <strong>GAP reference:</strong> {currentRecord.greyhoundRef}
-          </p>
-          <p>
-            <strong>Visit date:</strong> {currentRecord.visitDate}
-          </p>
-          <p>
-            <strong>Diagnosis:</strong> {currentRecord.diagnosis}
-          </p>
-          <p>
-            <strong>Treatment:</strong> {currentRecord.treatment}
-          </p>
-          <p>
-            <strong>Medications:</strong> {currentRecord.medications}
-          </p>
-          <p>
-            <strong>Clinical notes:</strong> {currentRecord.notes}
-          </p>
-          <p>
-            <strong>Last updated by:</strong> {currentRecord.updatedBy}
-          </p>
-          <p>
-            <strong>Last updated:</strong> {currentRecord.updatedAt}
-          </p>
-
-          {canEdit ? (
-            <button type="button" onClick={beginEditing}>
-              Edit medical record
-            </button>
-          ) : (
-            <p>
-              This record is read-only. Only Veterinary Practice users can
-              edit medical records.
-            </p>
-          )}
+          <p><strong>GAP reference:</strong> {currentRecord.id}</p>
+          <p><strong>Visit date:</strong> {currentRecord.visitDate || "Not recorded"}</p>
+          <p><strong>Diagnosis:</strong> {currentRecord.diagnosis || "Not recorded"}</p>
+          <p><strong>Treatment:</strong> {currentRecord.treatment || "Not recorded"}</p>
+          <p><strong>Medications:</strong> {currentRecord.medications || "Not recorded"}</p>
+          <p><strong>Clinical notes:</strong> {currentRecord.notes || "Not recorded"}</p>
+          <p><strong>Last updated by:</strong> {currentRecord.updatedBy || "—"}</p>
+          <p><strong>Last updated:</strong> {currentRecord.updatedAt || "—"}</p>
+          {canEdit
+            ? <button type="button" onClick={beginEditing}>Edit medical record</button>
+            : <p>This record is read-only — only a vet currently treating this greyhound can edit it.</p>}
         </div>
       )}
 
       {draft && (
-        <form onSubmit={saveRecord} style={{ marginTop: "20px" }}>
-          <h3>
-            Edit medical record — {draft.petName}
-          </h3>
-
+        <form onSubmit={saveRecord} style={{ marginTop: 20 }}>
+          <h3>Edit medical record — {draft.petName}</h3>
           <div className="form-grid">
-            <label>
-              Visit date
-              <input
-                type="date"
-                required
-                value={draft.visitDate}
-                onChange={(event) =>
-                  updateDraft("visitDate", event.target.value)
-                }
-              />
-            </label>
-
-            <label>
-              Diagnosis
-              <input
-                required
-                value={draft.diagnosis}
-                onChange={(event) =>
-                  updateDraft("diagnosis", event.target.value)
-                }
-              />
-            </label>
-
-            <label>
-              Treatment
-              <input
-                value={draft.treatment}
-                onChange={(event) =>
-                  updateDraft("treatment", event.target.value)
-                }
-              />
-            </label>
-
-            <label>
-              Medications
-              <input
-                value={draft.medications}
-                onChange={(event) =>
-                  updateDraft("medications", event.target.value)
-                }
-              />
-            </label>
-
-            <label className="full">
-              Clinical notes
-              <textarea
-                required
-                rows={4}
-                value={draft.notes}
-                onChange={(event) =>
-                  updateDraft("notes", event.target.value)
-                }
-              />
-            </label>
+            <label>Visit date<input type="date" required value={draft.visitDate} onChange={e => updateDraft("visitDate", e.target.value)} /></label>
+            <label>Diagnosis<input required value={draft.diagnosis} onChange={e => updateDraft("diagnosis", e.target.value)} /></label>
+            <label>Treatment<input value={draft.treatment} onChange={e => updateDraft("treatment", e.target.value)} /></label>
+            <label>Medications<input value={draft.medications} onChange={e => updateDraft("medications", e.target.value)} /></label>
+            <label className="full">Clinical notes<textarea required rows={4} value={draft.notes} onChange={e => updateDraft("notes", e.target.value)} /></label>
           </div>
-
-          <div
-            style={{
-              display: "flex",
-              gap: "12px",
-              marginTop: "16px",
-            }}
-          >
-            <button type="submit">Save changes</button>
-
-            <button type="button" onClick={cancelEditing}>
-              Cancel
-            </button>
+          <div style={{ display: "flex", gap: 12, marginTop: 16 }}>
+            <button type="submit" disabled={saving}>{saving ? "Saving…" : "Save changes"}</button>
+            <button type="button" onClick={cancelEditing} disabled={saving}>Cancel</button>
           </div>
         </form>
       )}

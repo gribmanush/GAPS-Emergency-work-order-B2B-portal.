@@ -20,6 +20,7 @@ export function Invoices({ invoices, role, update, setModal }: { invoices: Invoi
           <td>{role === "Finance Approver" && i.status === "Submitted" ? <div className="mini-actions"><button onClick={() => update(i.id, "Approved — Coupa pending")}>Approve</button><button onClick={() => update(i.id, "Rejected")}>Reject</button></div> : <button className="table-link">View</button>}</td>
         </tr>)}</tbody>
       </table>
+      {!invoices.length ? <div className="empty"><b>No invoices yet</b><span>Submitted invoices will appear here for review.</span></div> : null}
     </div>
   </>;
 }

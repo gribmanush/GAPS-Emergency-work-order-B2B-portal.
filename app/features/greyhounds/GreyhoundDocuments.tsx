@@ -1,127 +1,69 @@
+/**
+ * Team JAM contribution: ANKITA BASNET (TJ-73), rebuilt against Firestore.
+ * Document uploads per greyhound.
+ */
 "use client";
 
-import {
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type FormEvent,
-} from "react";
-
-type UploadedDocument = {
-  id: string;
-  greyhoundRef: string;
-  title: string;
-  documentType: string;
-  fileName: string;
-  fileData: string;
-  uploadedBy: string;
-  uploadedAt: string;
-};
+import { FormEvent, useMemo, useRef, useState } from "react";
+import { GreyhoundDocument } from "../../shared/types";
 
 type Props = {
   rows: string[][];
-  role: string;
+  documents: GreyhoundDocument[];
+  canManage: (petName: string) => boolean;
+  onUpload: (fields: Omit<GreyhoundDocument, "id">) => Promise<void>;
   userName: string;
 };
 
-const STORAGE_KEY = "gap-greyhound-documents";
-const MAX_FILE_SIZE = 1024 * 1024;
+// Kept comfortably under Firestore's 1MiB document limit once base64-encoded (~4/3 inflation).
+const MAX_FILE_SIZE = 700 * 1024;
 const ALLOWED_TYPES = ["application/pdf", "image/jpeg", "image/png"];
 
-export function GreyhoundDocuments({ rows, role, userName }: Props) {
-  const [selectedGreyhound, setSelectedGreyhound] = useState(
-    rows[0]?.[0] ?? "",
-  );
-  const [documents, setDocuments] = useState<UploadedDocument[]>([]);
+export function GreyhoundDocuments({ rows, documents, canManage, onUpload, userName }: Props) {
+  const [selectedGreyhound, setSelectedGreyhound] = useState(rows[0]?.[0] ?? "");
   const [message, setMessage] = useState("");
+  const [uploading, setUploading] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
 
-  const canUpload =
-    role === "Veterinary Practice" || role.toLowerCase().includes("gap");
-
-  useEffect(() => {
-    const saved = localStorage.getItem(STORAGE_KEY);
-
-    if (saved) {
-      try {
-        setDocuments(JSON.parse(saved));
-      } catch {
-        setMessage("Saved documents could not be loaded.");
-      }
-    }
-  }, []);
-
-  const selectedDocuments = useMemo(
-    () =>
-      documents.filter(
-        (document) => document.greyhoundRef === selectedGreyhound,
-      ),
-    [documents, selectedGreyhound],
-  );
+  const selectedRow = rows.find(r => r[0] === selectedGreyhound);
+  const canUpload = selectedRow ? canManage(selectedRow[1]) : false;
+  const selectedDocuments = useMemo(() => documents.filter(d => d.greyhoundRef === selectedGreyhound), [documents, selectedGreyhound]);
 
   function uploadDocument(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setMessage("");
-
     const formData = new FormData(event.currentTarget);
     const title = String(formData.get("title") ?? "").trim();
     const documentType = String(formData.get("documentType") ?? "");
     const file = formData.get("file");
 
-    if (!selectedGreyhound || !title || !documentType) {
-      setMessage("Complete all required fields.");
-      return;
-    }
-
-    if (!(file instanceof File) || file.size === 0) {
-      setMessage("Choose a document to upload.");
-      return;
-    }
-
-    if (!ALLOWED_TYPES.includes(file.type)) {
-      setMessage("Only PDF, JPG and PNG files are allowed.");
-      return;
-    }
-
-    if (file.size > MAX_FILE_SIZE) {
-      setMessage("The file must be 1 MB or smaller.");
-      return;
-    }
+    if (!selectedGreyhound || !title || !documentType) { setMessage("Complete all required fields."); return; }
+    if (!(file instanceof File) || file.size === 0) { setMessage("Choose a document to upload."); return; }
+    if (!ALLOWED_TYPES.includes(file.type)) { setMessage("Only PDF, JPG and PNG files are allowed."); return; }
+    if (file.size > MAX_FILE_SIZE) { setMessage("The file must be 700 KB or smaller."); return; }
 
     const reader = new FileReader();
-
-    reader.onload = () => {
-      const newDocument: UploadedDocument = {
-        id: crypto.randomUUID(),
-        greyhoundRef: selectedGreyhound,
-        title,
-        documentType,
-        fileName: file.name,
-        fileData: String(reader.result),
-        uploadedBy: userName,
-        uploadedAt: new Date().toLocaleString("en-AU"),
-      };
-
-      const updatedDocuments = [newDocument, ...documents];
-
+    reader.onload = async () => {
+      setUploading(true);
       try {
-        localStorage.setItem(
-          STORAGE_KEY,
-          JSON.stringify(updatedDocuments),
-        );
-        setDocuments(updatedDocuments);
+        await onUpload({
+          greyhoundRef: selectedGreyhound,
+          title,
+          documentType,
+          fileName: file.name,
+          fileData: String(reader.result),
+          uploadedBy: userName,
+          uploadedAt: new Date().toLocaleString("en-AU"),
+        });
         formRef.current?.reset();
         setMessage("Document uploaded successfully.");
-      } catch {
-        setMessage("The document could not be stored.");
+      } catch (err) {
+        setMessage(err instanceof Error ? err.message : "The document could not be stored.");
+      } finally {
+        setUploading(false);
       }
     };
-
-    reader.onerror = () => {
-      setMessage("The document could not be read.");
-    };
-
+    reader.onerror = () => setMessage("The document could not be read.");
     reader.readAsDataURL(file);
   }
 
@@ -131,101 +73,48 @@ export function GreyhoundDocuments({ rows, role, userName }: Props) {
   }
 
   return (
-    <section className="card">
+    <section className="panel" style={{ marginTop: 24 }}>
       <h2>Greyhound documents</h2>
-      <p>Upload and view documents stored against a Greyhound profile.</p>
+      <p>Upload and view documents stored against a greyhound profile.</p>
 
-      <label className="full">
-        Select Greyhound
-        <select
-          value={selectedGreyhound}
-          onChange={(event) => {
-            setSelectedGreyhound(event.target.value);
-            setMessage("");
-          }}
-        >
-          {rows.map((row) => (
-            <option key={row[0]} value={row[0]}>
-              {row[0]} — {row[1]}
-            </option>
-          ))}
+      <label className="full">Select greyhound
+        <select value={selectedGreyhound} onChange={e => { setSelectedGreyhound(e.target.value); setMessage(""); }}>
+          {rows.map(row => <option key={row[0]} value={row[0]}>{row[0]} — {row[1]}</option>)}
         </select>
       </label>
 
       {canUpload ? (
         <form ref={formRef} onSubmit={uploadDocument} className="form-grid">
-          <label>
-            Document title
-            <input name="title" required />
-          </label>
-
-          <label>
-            Document type
+          <label>Document title<input name="title" required /></label>
+          <label>Document type
             <select name="documentType" defaultValue="" required>
-              <option value="" disabled>
-                Select type
-              </option>
+              <option value="" disabled>Select type</option>
               <option value="Medical">Medical</option>
               <option value="Vaccination">Vaccination</option>
               <option value="Identification">Identification</option>
               <option value="Other">Other</option>
             </select>
           </label>
-
-          <label className="full">
-            File
-            <input
-              name="file"
-              type="file"
-              accept=".pdf,.jpg,.jpeg,.png"
-              required
-            />
-          </label>
-
+          <label className="full">File<input name="file" type="file" accept=".pdf,.jpg,.jpeg,.png" required /></label>
           <div className="full">
-            <button type="submit">Upload document</button>{" "}
-            <button type="button" onClick={cancelUpload}>
-              Cancel
-            </button>
+            <button type="submit" disabled={uploading}>{uploading ? "Uploading…" : "Upload document"}</button>{" "}
+            <button type="button" onClick={cancelUpload} disabled={uploading}>Cancel</button>
           </div>
         </form>
-      ) : (
-        <p>You have read-only access to Greyhound documents.</p>
-      )}
+      ) : <p>You have read-only access to this greyhound&rsquo;s documents.</p>}
 
       {message && <p role="status">{message}</p>}
 
       <h3>Uploaded documents</h3>
-
-      {selectedDocuments.length === 0 ? (
-        <p>No documents have been uploaded for this Greyhound.</p>
-      ) : (
-        <div className="table-wrap">
+      {selectedDocuments.length === 0 ? <p>No documents have been uploaded for this greyhound.</p> : (
+        <div className="table-card">
           <table>
-            <thead>
-              <tr>
-                <th>Title</th>
-                <th>Type</th>
-                <th>File</th>
-                <th>Uploaded by</th>
-                <th>Uploaded</th>
-              </tr>
-            </thead>
-            <tbody>
-              {selectedDocuments.map((document) => (
-                <tr key={document.id}>
-                  <td>{document.title}</td>
-                  <td>{document.documentType}</td>
-                  <td>
-                    <a href={document.fileData} download={document.fileName}>
-                      {document.fileName}
-                    </a>
-                  </td>
-                  <td>{document.uploadedBy}</td>
-                  <td>{document.uploadedAt}</td>
-                </tr>
-              ))}
-            </tbody>
+            <thead><tr><th>Title</th><th>Type</th><th>File</th><th>Uploaded by</th><th>Uploaded</th></tr></thead>
+            <tbody>{selectedDocuments.map(document => <tr key={document.id}>
+              <td>{document.title}</td><td>{document.documentType}</td>
+              <td><a href={document.fileData} download={document.fileName}>{document.fileName}</a></td>
+              <td>{document.uploadedBy}</td><td>{document.uploadedAt}</td>
+            </tr>)}</tbody>
           </table>
         </div>
       )}
