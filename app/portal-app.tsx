@@ -18,6 +18,7 @@ import { Modal } from "./shared/Modal";
 import { Auth } from "./features/auth/Auth";
 import { Dashboard } from "./features/dashboard/Dashboard";
 import { WorkOrders } from "./features/work-orders/WorkOrders";
+import { WorkOrderPool } from "./features/work-orders/WorkOrderPool";
 import { OrderDetail } from "./features/work-orders/OrderDetail";
 import { WorkOrderReviewModal } from "./features/work-orders/WorkOrderReviewModal";
 import { Invoices } from "./features/invoices/Invoices";
@@ -34,7 +35,7 @@ import { auth, friendlyAuthError, isStrongPassword, loadProfile, requestPassword
 import { parseInvoiceFields, parseWorkOrderFields } from "./contributions/jubayer-workflows";
 import { createGreyhoundRecord } from "./contributions/arjun-greyhounds";
 import { listRegisteredVets, VetDirectoryEntry } from "./lib/vet-directory";
-import { acceptWorkOrder, advanceWorkOrderStatus, createWorkOrder, reassignWorkOrder, rejectWorkOrder, subscribeWorkOrders } from "./lib/repositories/work-orders";
+import { acceptWorkOrder, advanceWorkOrderStatus, claimWorkOrder, createWorkOrder, reassignWorkOrder, rejectWorkOrder, subscribeWorkOrders } from "./lib/repositories/work-orders";
 import { createInvoice, reviewInvoice, subscribeInvoices } from "./lib/repositories/invoices";
 import { createIncident, subscribeIncidents } from "./lib/repositories/incidents";
 import { createGreyhound, subscribeGreyhounds } from "./lib/repositories/greyhounds";
@@ -70,11 +71,19 @@ export default function PortalApp() {
   const [collapsed, setCollapsed] = useState(false);
 
   useEffect(() => {
+    let lastLoggedUid: string | null = null;
     return onAuthStateChanged(auth, async (user) => {
       if (!user) { setSession(null); setScreen("login"); return; }
       const profile = await loadProfile(user.uid, user.email || "");
       setSession(profile); setScreen("app"); setRoute("dashboard");
-      logSignIn({ name: profile.fullName, role: profile.role });
+      // onAuthStateChanged can re-fire for the same signed-in user (e.g. a
+      // token refresh, or React 18 Strict Mode's double effect invocation in
+      // dev) - only log once per actual sign-in, and never let this
+      // best-effort write crash the UI with an unhandled rejection.
+      if (lastLoggedUid !== user.uid) {
+        lastLoggedUid = user.uid;
+        logSignIn({ name: profile.fullName, role: profile.role }).catch(() => {});
+      }
     });
   }, []);
 
@@ -204,15 +213,34 @@ export default function PortalApp() {
     catch (err) { setToast(err instanceof Error ? err.message : "Could not reassign this work order."); }
     setReviewOrderId(null);
   }
+  async function claimPoolOrder(orderId: string) {
+    if (!session) return;
+    try {
+      await claimWorkOrder(orderId, { uid: session.uid, fullName: session.fullName, practice: session.practice }, { name: session.fullName, role: session.role });
+      setToast(`${orderId} claimed`);
+    } catch (err) { setToast(err instanceof Error ? err.message : "Could not claim this work order."); }
+  }
+  async function assignPoolOrder(orderId: string, vetUid: string) {
+    if (!session) return;
+    const vet = vets.find(v => v.uid === vetUid);
+    if (!vet) { setToast("Select a vet to assign to."); return; }
+    try { await reassignWorkOrder(orderId, vet, { name: session.fullName, role: session.role }); setToast(`${orderId} assigned to ${vet.fullName}`); }
+    catch (err) { setToast(err instanceof Error ? err.message : "Could not assign this work order."); }
+  }
 
   async function handleModalSubmit(data: Record<string, FormDataEntryValue>) {
     if (!session || !actor) return;
     try {
       if (modal === "work-order") {
         if (session.role === "Veterinary Practice") { setToast("Vets cannot create work orders."); setModal(null); return; }
-        const vet = vets.find(v => v.uid === String(data.assignedVetUid));
-        if (!vet) { setToast("Select a vet to assign this work order to."); return; }
-        await createWorkOrder(parseWorkOrderFields(data), vet, actor);
+        const rawVetId = String(data.assignedVetUid);
+        if (rawVetId === "__pool__") {
+          await createWorkOrder(parseWorkOrderFields(data), null, actor);
+        } else {
+          const vet = vets.find(v => v.uid === rawVetId);
+          if (!vet) { setToast("Select a vet or add this work order to the pool."); return; }
+          await createWorkOrder(parseWorkOrderFields(data), vet, actor);
+        }
       }
       if (modal === "invoice") { await createInvoice(parseInvoiceFields(data), actor); }
       if (modal === "incident") {
@@ -239,6 +267,7 @@ export default function PortalApp() {
 
   const visibleNav = nav.filter(([id]) => canViewTab(session.role, id));
   const worklistOrders = orders.filter(o => isWorkOrderInVetWorklist(session, o));
+  const poolOrders = orders.filter(o => o.isPooled && !o.assignedVetUid);
   const selectedOrder = selectedOrderId ? worklistOrders.find(o => o.id === selectedOrderId) || null : null;
   const visibleInvoices = invoices.filter(i => isVisibleToSession(session, i.practice));
   const visibleNotices = notices.filter(n => isNoticeVisible(session, n));
@@ -268,6 +297,7 @@ export default function PortalApp() {
         {route === "incidents" && <Incidents rows={incidents.map(incidentToRow)} readOnly={isReadOnly} setModal={setModal} />}
         {route === "work-orders" && !selectedOrder && <WorkOrders orders={worklistOrders} search={search} role={session.role} setSelected={o => setSelectedOrderId(o.id)} setModal={setModal} />}
         {route === "work-orders" && selectedOrder && <OrderDetail order={selectedOrder} role={session.role} back={() => setSelectedOrderId(null)} transition={transition} setModal={setModal} />}
+        {route === "work-order-pool" && <WorkOrderPool orders={poolOrders} role={session.role} vets={vets} onClaim={claimPoolOrder} onAssign={assignPoolOrder} setModal={setModal} />}
         {route === "greyhounds" && <Greyhounds
           rows={greyhounds.map(greyhoundToRow)}
           readOnly={isReadOnly}

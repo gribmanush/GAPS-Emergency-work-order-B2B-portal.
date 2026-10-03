@@ -65,6 +65,10 @@ export type WorkOrder = {
   // Set when the assigned vet rejects the work — it stays at "Work Order Created
   // and Assigned" but is pulled from that vet's access until GAP reassigns it.
   needsReassignment?: boolean;
+  // Set instead of assigning a specific vet at creation time: the order sits in
+  // the shared work order pool (visible to every vet) until someone claims it,
+  // or GAP staff assigns it directly.
+  isPooled?: boolean;
 };
 
 // A vet can only ever see/act on work orders currently assigned to their own
@@ -72,6 +76,7 @@ export type WorkOrder = {
 // role keeps full visibility across every practice and vet.
 export function canAccessWorkOrder(session: Pick<UserProfile, "role" | "uid">, order: WorkOrder): boolean {
   if (session.role !== "Veterinary Practice") return true;
+  if (order.isPooled) return true;
   if (order.needsReassignment) return false;
   return order.assignedVetUid === session.uid;
 }
@@ -193,6 +198,7 @@ export const accounts: Record<string, { role: Role; name: string }> = {
 
 export const nav = [
   ["dashboard","▦","Dashboard"], ["incidents","⚠","Emergency Incidents"], ["work-orders","▤","Work Orders"],
+  ["work-order-pool","▣","Work Order Pool"],
   ["greyhounds","◇","Greyhounds"], ["practices","✚","Veterinary Practices"], ["invoices","$","Invoices"],
   ["notifications","●","Notifications"], ["reports","▥","Reports"], ["audit","◷","Audit Log"],
   ["users","♙","User Administration"], ["settings","⚙","Settings"], ["help","?","Help & Support"],
@@ -202,6 +208,7 @@ export const restricted: Record<string, Role[]> = {
   users:["GAP Administrator"], settings:["GAP Administrator"], audit:["GAP Administrator","GRNSW Auditor"],
   reports:["GAP Administrator","GAP Case Manager","Finance Approver","GRNSW Auditor"],
   practices:["GAP Administrator","GAP Case Manager","GRNSW Auditor"], incidents:["GAP Administrator","GAP Case Manager","GRNSW Auditor"],
+  "work-order-pool":["GAP Administrator","GAP Case Manager","Veterinary Practice"],
 };
 
 export const money = (n:number) => new Intl.NumberFormat("en-AU",{style:"currency",currency:"AUD"}).format(n);
