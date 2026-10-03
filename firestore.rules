@@ -44,12 +44,19 @@ service cloud.firestore {
     // ---- Work orders: a vet only ever sees/acts on their own assignment;
     // GAP staff have full visibility and are the only ones who can create one. ----
     match /workOrders/{orderId} {
-      allow read: if isGapStaff() || (isVet() && resource.data.assignedVetUid == request.auth.uid);
+      allow read: if isGapStaff() || (isVet() && (resource.data.assignedVetUid == request.auth.uid || resource.data.isPooled == true));
       allow create: if isGapStaff()
         && request.resource.data.status == 'Work Order Created and Assigned'
         && request.resource.data.assignedVetUid is string;
+      // A vet may also claim a still-unclaimed pool order themselves - narrowly
+      // scoped so they can only ever claim it for themselves, not rewrite it
+      // into any other shape.
       allow update: if isGapStaff()
-        || (isVet() && resource.data.assignedVetUid == request.auth.uid);
+        || (isVet() && resource.data.assignedVetUid == request.auth.uid)
+        || (isVet() && resource.data.isPooled == true && resource.data.assignedVetUid == ''
+            && request.resource.data.assignedVetUid == request.auth.uid
+            && request.resource.data.isPooled == false
+            && request.resource.data.status == 'Accepted by Vet');
       allow delete: if false;
     }
 

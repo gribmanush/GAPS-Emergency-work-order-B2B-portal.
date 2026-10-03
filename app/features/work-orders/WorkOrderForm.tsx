@@ -13,8 +13,9 @@ export function WorkOrderForm({ vets }: { vets: VetDirectoryEntry[] }) {
     <label className="full">Greyhounds <small>Separate names with commas</small><input name="dogs" required placeholder="Scout, Ruby" /></label>
     <label className="full">Requested service<select name="service"><option>Emergency consultation</option><option>Triage, imaging and stabilisation</option><option>Pathology and medication</option><option>Wound treatment</option><option>Surgery and hospitalisation</option></select></label>
     <label className="full">Assign to vet<small>The assigned vet will be notified and must accept or reject the work.</small>
-      <select name="assignedVetUid" required disabled={!vets.length}>
+      <select name="assignedVetUid" required>
         <option value="">{vets.length ? "Select a registered vet" : "No registered vets available yet"}</option>
+        <option value="__pool__">Add to work order pool</option>
         {vets.map(v => <option key={v.uid} value={v.uid}>{v.fullName}{v.practice ? ` — ${v.practice}` : ""}</option>)}
       </select>
     </label>
