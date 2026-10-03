@@ -28,7 +28,6 @@ import { Practices } from "./features/misc/Practices";
 import { Notifications } from "./features/misc/Notifications";
 import { Reports } from "./features/misc/Reports";
 import { AuditLog } from "./features/misc/AuditLog";
-import { Users } from "./features/misc/Users";
 import { Settings } from "./features/misc/Settings";
 import { Help } from "./features/misc/Help";
 import { auth, friendlyAuthError, isStrongPassword, loadProfile, requestPasswordReset, signIn, signOutUser, signUp } from "./contributions/ankita-auth";
@@ -318,7 +317,6 @@ export default function PortalApp() {
         {route === "notifications" && <Notifications notices={visibleNotices} onMarkRead={markNotificationRead} onMarkAll={() => markAllNotificationsRead(session, notices)} onOpenWorkOrder={setReviewOrderId} />}
         {route === "reports" && <Reports orders={orders} invoices={invoices} practices={practices} />}
         {route === "audit" && <AuditLog rows={audits} />}
-        {route === "users" && <Users />}
         {route === "settings" && <Settings />}
         {route === "help" && <Help setToast={setToast} />}
       </main>

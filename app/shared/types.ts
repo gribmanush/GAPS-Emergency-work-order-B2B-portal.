@@ -201,11 +201,11 @@ export const nav = [
   ["work-order-pool","▣","Work Order Pool"],
   ["greyhounds","◇","Greyhounds"], ["practices","✚","Veterinary Practices"], ["invoices","$","Invoices"],
   ["notifications","●","Notifications"], ["reports","▥","Reports"], ["audit","◷","Audit Log"],
-  ["users","♙","User Administration"], ["settings","⚙","Settings"], ["help","?","Help & Support"],
+  ["settings","⚙","Settings"], ["help","?","Help & Support"],
 ];
 
 export const restricted: Record<string, Role[]> = {
-  users:["GAP Administrator"], settings:["GAP Administrator"], audit:["GAP Administrator","GRNSW Auditor"],
+  settings:["GAP Administrator"], audit:["GAP Administrator","GRNSW Auditor"],
   reports:["GAP Administrator","GAP Case Manager","Finance Approver","GRNSW Auditor"],
   practices:["GAP Administrator","GAP Case Manager","GRNSW Auditor"], incidents:["GAP Administrator","GAP Case Manager","GRNSW Auditor"],
   "work-order-pool":["GAP Administrator","GAP Case Manager","Veterinary Practice"],
