@@ -119,6 +119,10 @@ export type Audit = { id: string; time: string; user: string; role: string; acti
 export type Incident = {
   id: string; occurredAt: string; type: string; location: string;
   greyhoundCount: number; priority: string; status: string; summary?: string;
+  greyhoundIds?: string[];
+  greyhoundNames?: string[];
+  reporterName?: string;
+  reporterContact?: string;
 };
 
 export type Greyhound = {
@@ -129,6 +133,10 @@ export type Greyhound = {
 export type Practice = {
   id: string; // document id — the practice name, since that's the key used everywhere else
   name: string; approval: string; operations: string; coverage: string; supplierRef: string; avgResponse: string;
+  legalName?: string;
+  abn?: string;
+  email?: string;
+  phone?: string;
 };
 
 export type MedicalRecord = {

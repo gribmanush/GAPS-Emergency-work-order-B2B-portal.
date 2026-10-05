@@ -43,6 +43,7 @@ import { markAllNotificationsRead, markNotificationRead, subscribeNotifications 
 import { logSignIn, subscribeAuditLog } from "./lib/repositories/audit-log";
 import { saveMedicalRecord, subscribeMedicalRecords } from "./lib/repositories/medical-records";
 import { subscribeGreyhoundDocuments, uploadGreyhoundDocument } from "./lib/repositories/greyhound-documents";
+import { buildEmergencyCase } from "./contributions/aanay-sprint5";
 
 function canViewTab(role: Role, tabId: string) {
   return !restricted[tabId] || restricted[tabId].includes(role);
@@ -243,20 +244,20 @@ export default function PortalApp() {
       }
       if (modal === "invoice") { await createInvoice(parseInvoiceFields(data), actor); }
       if (modal === "incident") {
-        await createIncident({
-          occurredAt: new Date().toLocaleString("en-AU"),
-          type: String(data.type),
-          location: `${data.suburb} NSW`,
-          greyhoundCount: 1,
-          priority: String(data.priority),
-          status: "Draft",
-          summary: String(data.summary || ""),
-        }, actor);
+        await createIncident(buildEmergencyCase({
+          occurredAt: String(data.occurredAt), type: String(data.type), priority: String(data.priority),
+          suburb: String(data.suburb), postcode: String(data.postcode), summary: String(data.summary || ""),
+          greyhoundIds: String(data.greyhoundIds || ""), reporterContact: String(data.reporterContact || ""),
+        }, greyhounds, session.fullName), actor);
       }
       if (modal === "greyhound") { await createGreyhound(createGreyhoundRecord(data), actor); }
       if (modal === "practice") {
         const name = String(data.tradingName || data.legalName);
-        await registerPractice({ id: name, name, approval: "Pending", operations: "Inactive", coverage: String(data.coverage), supplierRef: "Not mapped", avgResponse: "—" }, actor);
+        await registerPractice({
+          id: name, name, legalName: String(data.legalName), abn: String(data.abn).replace(/\s/g, ""),
+          email: String(data.email), phone: String(data.phone), approval: "Pending", operations: "Inactive",
+          coverage: String(data.coverage), supplierRef: "Not mapped", avgResponse: "—",
+        }, actor);
       }
       setModal(null); setToast("Saved successfully");
     } catch (err) { setToast(err instanceof Error ? err.message : "Could not save this record."); }
@@ -321,7 +322,7 @@ export default function PortalApp() {
         {route === "help" && <Help setToast={setToast} />}
       </main>
     </div>
-    {modal && <Modal type={modal} close={() => setModal(null)} vets={vets} invoiceContext={{ orders: worklistOrders, invoices: visibleInvoices, practice: session.practice }} submit={handleModalSubmit} />}
+    {modal && <Modal type={modal} close={() => setModal(null)} vets={vets} greyhounds={greyhounds} invoiceContext={{ orders: worklistOrders, invoices: visibleInvoices, practice: session.practice }} submit={handleModalSubmit} />}
     {reviewOrder && <WorkOrderReviewModal
       order={reviewOrder}
       role={session.role}

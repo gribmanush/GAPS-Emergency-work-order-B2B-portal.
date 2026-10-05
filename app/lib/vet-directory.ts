@@ -6,14 +6,20 @@
 
 import { collection, getDocs } from "firebase/firestore";
 import { db } from "./firebase";
-import { ROLE_COLLECTIONS, UserProfile } from "../shared/types";
+import { DATA_COLLECTIONS, Practice, ROLE_COLLECTIONS, UserProfile } from "../shared/types";
+import { eligibleVeterinaryProfiles } from "../contributions/aanay-sprint5";
 
-export type VetDirectoryEntry = { uid: string; fullName: string; email: string; practice?: string };
+export type VetDirectoryEntry = { uid: string; fullName: string; email: string; practice?: string; licenseNumber?: string };
 
 export async function listRegisteredVets(): Promise<VetDirectoryEntry[]> {
-  const snapshot = await getDocs(collection(db, ROLE_COLLECTIONS["Veterinary Practice"]));
-  return snapshot.docs.map(item => {
+  const [vetSnapshot, practiceSnapshot] = await Promise.all([
+    getDocs(collection(db, ROLE_COLLECTIONS["Veterinary Practice"])),
+    getDocs(collection(db, DATA_COLLECTIONS.practices)),
+  ]);
+  const profiles = vetSnapshot.docs.map(item => {
     const data = item.data() as UserProfile;
-    return { uid: data.uid, fullName: data.fullName, email: data.email, practice: data.practice };
+    return { uid: data.uid, fullName: data.fullName, email: data.email, practice: data.practice, licenseNumber: data.licenseNumber };
   });
+  const practices = practiceSnapshot.docs.map(item => ({ ...(item.data() as Practice), id: item.id }));
+  return eligibleVeterinaryProfiles(profiles, practices);
 }
