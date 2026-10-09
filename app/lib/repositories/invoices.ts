@@ -31,7 +31,7 @@ export function subscribeInvoices(
   );
 }
 
-export async function createInvoice(fields: { workOrder: string; practice: string; amount: number }, actor: Actor): Promise<void> {
+export async function createInvoice(fields: { workOrder: string; practice: string; amount: number }, actor: Actor): Promise<string> {
   const id = generateFriendlyId("INV");
   const invoiceRef = doc(invoicesCol(), id);
   const auditRef = doc(auditLogCol());
@@ -42,6 +42,7 @@ export async function createInvoice(fields: { workOrder: string; practice: strin
     transaction.set(auditRef, auditEntry(actor, "Submitted invoice", id));
     transaction.set(noticeRef, { text: `${id} was submitted for finance review`, time: "Just now", read: false, staffOnly: true, createdAt: serverTimestamp() });
   });
+  return id;
 }
 
 export async function reviewInvoice(invoiceId: string, status: string, actor: Actor): Promise<void> {

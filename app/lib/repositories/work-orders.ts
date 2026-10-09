@@ -64,7 +64,7 @@ export async function createWorkOrder(
   fields: { incident: string; dogs: string[]; priority: string; due: string; limit: number; service: string; notes: string },
   vet: VetDirectoryEntry | null,
   actor: Actor,
-): Promise<void> {
+): Promise<string> {
   const id = generateFriendlyId("WO");
   const order: Omit<WorkOrder, "id"> = {
     ...fields,
@@ -85,6 +85,7 @@ export async function createWorkOrder(
       transaction.set(noticeRef, { text: `${id} was assigned to you`, time: "Just now", read: false, recipientUid: vet.uid, workOrderId: id, createdAt: serverTimestamp() });
     }
   });
+  return id;
 }
 
 export async function claimWorkOrder(

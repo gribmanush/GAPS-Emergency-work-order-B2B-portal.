@@ -51,7 +51,7 @@ Install dependencies and start the development server using the package scripts.
 - Data is synthetic and the application is not approved for operational or clinical use.
 - Firebase Authentication is implemented; Microsoft Entra ID is not connected.
 - Clinical-document storage remains a prototype implementation.
-- In-app notifications are implemented; email and SMS delivery are not.
+- In-app notifications are implemented. Transactional email delivery is implemented through an authenticated Cloudflare Worker and Resend; deployment requires the five secrets documented in `docs/EMAIL-NOTIFICATIONS.md`. SMS delivery is not included.
 - Coupa and Dynamics 365 are not connected in this build.
 - Production use requires secure backend authentication, server-enforced authorisation, a managed database, encrypted document storage, monitoring and approved enterprise integrations.
 
