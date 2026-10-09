@@ -37,8 +37,10 @@ The role switcher in the header is a prototype review tool, not production authe
 - Treatment services and work-order history views
 - Veterinary invoice submission and finance approval/rejection
 - Notifications, operational reports and audit records
+- Registered veterinary-organisation governance and licensed-clinician assignment
+- Multi-greyhound emergency cases with reporter and location traceability
 - CSV exports, responsive layouts and accessible form controls
-- Browser-local persistence and demonstration-data reset
+- Shared Cloud Firestore persistence with role-aware subscriptions
 
 ## Running locally
 
@@ -46,10 +48,10 @@ Install dependencies and start the development server using the package scripts.
 
 ## Prototype limitations
 
-- Data is synthetic and stored only in the browser for demonstration.
-- Authentication and Microsoft Entra ID are simulated.
-- File upload stores no real clinical document.
-- Email and external notifications are simulated.
+- Data is synthetic and the application is not approved for operational or clinical use.
+- Firebase Authentication is implemented; Microsoft Entra ID is not connected.
+- Clinical-document storage remains a prototype implementation.
+- In-app notifications are implemented. Transactional email delivery is implemented through an authenticated Cloudflare Worker and Resend; deployment requires the five secrets documented in `docs/EMAIL-NOTIFICATIONS.md`. SMS delivery is not included.
 - Coupa and Dynamics 365 are not connected in this build.
 - Production use requires secure backend authentication, server-enforced authorisation, a managed database, encrypted document storage, monitoring and approved enterprise integrations.
 

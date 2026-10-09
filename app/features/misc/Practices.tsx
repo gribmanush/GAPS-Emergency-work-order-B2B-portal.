@@ -6,7 +6,7 @@ import { Role } from "../../shared/types";
 export function Practices({ rows, role, setModal }: { rows: string[][]; role: Role; setModal: (m: string) => void }) {
   return <Directory
     title="Veterinary practices"
-    subtitle="Approved emergency veterinary network"
+    subtitle="Register and govern the veterinary organisations whose verified clinicians can receive work orders"
     heads={["Practice", "Approval", "Operations", "Coverage", "Supplier reference", "Avg. response"]}
     rows={rows}
     action={role === "GAP Administrator" ? "Register practice" : undefined}

@@ -1,8 +1,9 @@
 /** Cloudflare Worker entry point for the vinext-starter template. */
 import { handleImageOptimization, DEFAULT_DEVICE_SIZES, DEFAULT_IMAGE_SIZES } from "vinext/server/image-optimization";
 import handler from "vinext/server/app-router-entry";
+import { handleEmailNotification, type EmailEnv } from "./email-notifications";
 
-interface Env {
+interface Env extends EmailEnv {
   ASSETS: Fetcher;
   DB: D1Database;
   IMAGES: {
@@ -38,6 +39,10 @@ const worker = {
           return result.response();
         },
       }, allowedWidths);
+    }
+
+    if (url.pathname === "/api/notifications/email") {
+      return handleEmailNotification(request, env);
     }
 
     return handler.fetch(request, env, ctx);

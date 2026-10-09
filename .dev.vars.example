@@ -1,0 +1,6 @@
+# Copy to .dev.vars for local testing. Never commit the real file or API key.
+RESEND_API_KEY=re_xxxxxxxxx
+EMAIL_FROM=GAP Emergency Portal <onboarding@resend.dev>
+EMAIL_TEST_RECIPIENT=verified-resend-account@example.com
+GAP_NOTIFICATION_EMAIL=gap-notifications@example.com
+FIREBASE_API_KEY=your_firebase_web_api_key
