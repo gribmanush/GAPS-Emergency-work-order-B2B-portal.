@@ -1,3 +1,5 @@
+import type { Timestamp } from "firebase/firestore";
+
 export type Role = "GAP Administrator" | "GAP Case Manager" | "Veterinary Practice" | "Finance Approver" | "GRNSW Auditor";
 
 export type VetSpecialty = "Small Animals" | "Equine" | "Livestock" | "Exotic" | "Surgery";
@@ -104,6 +106,10 @@ export type Notice = {
   recipientUid?: string; // set for a notice meant for exactly one person (e.g. "you've been assigned this")
   staffOnly?: boolean; // set for a notice meant for any GAP staff role, never a vet
   workOrderId?: string; // lets clicking the notice open the related work order
+  // Set by the repository layer (serverTimestamp()) at creation; absent/null
+  // for the brief window before the server assigns it. The real source for
+  // the displayed relative time, instead of the frozen `time` label above.
+  createdAt?: Timestamp | null;
 };
 
 // Priority: a personally-addressed notice beats everything else; a staff-only
