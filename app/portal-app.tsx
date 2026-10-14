@@ -241,7 +241,7 @@ export default function PortalApp() {
           await createWorkOrder(parseWorkOrderFields(data), vet, actor);
         }
       }
-      if (modal === "invoice") { await createInvoice(parseInvoiceFields(data), actor); }
+      if (modal === "invoice") { await createInvoice(parseInvoiceFields(data), { name: session.fullName, role: session.role, uid: session.uid }); }
       if (modal === "incident") {
         await createIncident({
           occurredAt: new Date().toLocaleString("en-AU"),

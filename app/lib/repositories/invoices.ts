@@ -31,12 +31,12 @@ export function subscribeInvoices(
   );
 }
 
-export async function createInvoice(fields: { workOrder: string; practice: string; amount: number }, actor: Actor): Promise<void> {
+export async function createInvoice(fields: { workOrder: string; practice: string; amount: number }, actor: Actor & { uid: string }): Promise<void> {
   const id = generateFriendlyId("INV");
   const invoiceRef = doc(invoicesCol(), id);
   const auditRef = doc(auditLogCol());
   const noticeRef = doc(notificationsCol());
-  const invoice = { ...fields, status: "Submitted", version: 1, date: new Date().toLocaleDateString("en-AU") };
+  const invoice = { ...fields, status: "Submitted", version: 1, date: new Date().toLocaleDateString("en-AU"), submittedByUid: actor.uid };
   await runTransaction(db, async transaction => {
     transaction.set(invoiceRef, { ...invoice, createdAt: serverTimestamp() });
     transaction.set(auditRef, auditEntry(actor, "Submitted invoice", id));
@@ -54,6 +54,6 @@ export async function reviewInvoice(invoiceId: string, status: string, actor: Ac
     const invoice = normalise(invoiceId, snapshot.data());
     transaction.update(invoiceRef, { status });
     transaction.set(auditRef, auditEntry(actor, `${status} invoice`, invoiceId));
-    transaction.set(noticeRef, { text: `${invoiceId} is now ${status}`, time: "Just now", read: false, practice: invoice.practice, createdAt: serverTimestamp() });
+    transaction.set(noticeRef, { text: `${invoiceId} is now ${status}`, time: "Just now", read: false, practice: invoice.practice, recipientUid: invoice.submittedByUid, createdAt: serverTimestamp() });
   });
 }
