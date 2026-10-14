@@ -38,7 +38,7 @@ import { acceptWorkOrder, advanceWorkOrderStatus, claimWorkOrder, createWorkOrde
 import { createInvoice, reviewInvoice, subscribeInvoices } from "./lib/repositories/invoices";
 import { createIncident, subscribeIncidents } from "./lib/repositories/incidents";
 import { createGreyhound, subscribeGreyhounds } from "./lib/repositories/greyhounds";
-import { registerPractice, subscribePractices } from "./lib/repositories/practices";
+import { approvePractice, registerPractice, subscribePractices } from "./lib/repositories/practices";
 import { markAllNotificationsRead, markNotificationRead, subscribeNotifications } from "./lib/repositories/notifications";
 import { logSignIn, subscribeAuditLog } from "./lib/repositories/audit-log";
 import { saveMedicalRecord, subscribeMedicalRecords } from "./lib/repositories/medical-records";
@@ -308,7 +308,11 @@ export default function PortalApp() {
           onSaveMedicalRecord={record => saveMedicalRecord(record, { name: session.fullName, role: session.role })}
           onUploadDocument={fields => uploadGreyhoundDocument(fields, { name: session.fullName, role: session.role })}
         />}
-        {route === "practices" && <Practices rows={practices.map(practiceToRow)} role={session.role} setModal={setModal} />}
+        {route === "practices" && <Practices practices={practices} role={session.role} setModal={setModal} onApprove={async id => {
+          if (!actor) return;
+          try { await approvePractice(id, actor); setToast(`${id} approved and activated`); }
+          catch (err) { setToast(err instanceof Error ? err.message : "Could not approve this practice."); }
+        }} />}
         {route === "invoices" && <Invoices invoices={visibleInvoices} role={session.role} update={async (id, status) => {
           if (!actor) return;
           try { await reviewInvoice(id, status, actor); setToast(`${id}: ${status}`); }
