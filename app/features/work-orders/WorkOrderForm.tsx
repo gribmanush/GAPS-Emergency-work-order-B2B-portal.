@@ -6,6 +6,14 @@
 
 import type { VetDirectoryEntry } from "../../lib/vet-directory";
 
+// Formats "now" as the value a `datetime-local` input expects (local time,
+// no seconds), so the due-date field can't be set to a moment already past.
+function currentDateTimeLocal(): string {
+  const now = new Date();
+  now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+  return now.toISOString().slice(0, 16);
+}
+
 export function WorkOrderForm({ vets }: { vets: VetDirectoryEntry[] }) {
   return <div className="form-grid">
     <label>Incident reference<input name="incident" required defaultValue="INC-2026-090" /></label>
@@ -19,8 +27,8 @@ export function WorkOrderForm({ vets }: { vets: VetDirectoryEntry[] }) {
         {vets.map(v => <option key={v.uid} value={v.uid}>{v.fullName}{v.practice ? ` — ${v.practice}` : ""}</option>)}
       </select>
     </label>
-    <label>Response required<input name="due" type="datetime-local" /></label>
-    <label>Authorised limit (AUD)<input name="limit" type="number" min="0" required defaultValue="1500" /></label>
+    <label>Response required<input name="due" type="datetime-local" min={currentDateTimeLocal()} /></label>
+    <label>Authorised limit (AUD)<input name="limit" type="number" min="0.01" step="0.01" required defaultValue="1500" /></label>
     <label className="full">Instructions<textarea name="notes" rows={3} /></label>
   </div>;
 }

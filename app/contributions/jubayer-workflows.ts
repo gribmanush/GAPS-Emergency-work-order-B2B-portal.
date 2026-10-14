@@ -10,11 +10,22 @@ export const JUBAYER_JIRA_ITEMS = ["TJ-30", "TJ-34"] as const;
 // repository needs. The repository itself decides status/assignment, since
 // those depend on which vet was picked and who's creating it.
 export function parseWorkOrderFields(data: Record<string, FormDataEntryValue>) {
+  const dogs = String(data.dogs || "New greyhound").split(",").map((name) => name.trim()).filter(Boolean);
+  if (dogs.length === 0) throw new Error("Enter at least one greyhound name.");
+
+  const due = String(data.due || "");
+  if (due) {
+    const dueDate = new Date(due);
+    if (!Number.isNaN(dueDate.getTime()) && dueDate.getTime() < Date.now()) {
+      throw new Error("Response required date/time can't be in the past.");
+    }
+  }
+
   return {
     incident: String(data.incident || "INC-2026-NEW"),
-    dogs: String(data.dogs || "New greyhound").split(",").map((name) => name.trim()).filter(Boolean),
+    dogs,
     priority: String(data.priority || "Moderate"),
-    due: String(data.due || "Not set"),
+    due: due || "Not set",
     limit: Number(data.limit || 0),
     service: String(data.service || "Emergency consultation"),
     notes: String(data.notes || ""),
