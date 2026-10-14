@@ -295,7 +295,7 @@ export default function PortalApp() {
         {route === "dashboard" && <Dashboard role={session.role} orders={worklistOrders} invoices={visibleInvoices} setRoute={setRoute} setModal={setModal} />}
         {route === "incidents" && <Incidents rows={incidents.map(incidentToRow)} readOnly={isReadOnly} setModal={setModal} />}
         {route === "work-orders" && !selectedOrder && <WorkOrders orders={worklistOrders} search={search} role={session.role} setSelected={o => setSelectedOrderId(o.id)} setModal={setModal} />}
-        {route === "work-orders" && selectedOrder && <OrderDetail order={selectedOrder} role={session.role} back={() => setSelectedOrderId(null)} transition={transition} setModal={setModal} />}
+        {route === "work-orders" && selectedOrder && <OrderDetail order={selectedOrder} role={session.role} back={() => setSelectedOrderId(null)} transition={transition} setModal={setModal} greyhounds={greyhounds} />}
         {route === "work-order-pool" && <WorkOrderPool orders={poolOrders} role={session.role} vets={vets} onClaim={claimPoolOrder} onAssign={assignPoolOrder} setModal={setModal} />}
         {route === "greyhounds" && <Greyhounds
           rows={greyhounds.map(greyhoundToRow)}
