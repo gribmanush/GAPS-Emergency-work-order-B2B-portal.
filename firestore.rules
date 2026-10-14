@@ -19,19 +19,23 @@ service cloud.firestore {
     // ---- Role profiles: one collection per role, each account owns exactly
     // one document across all five, keyed by their own uid. ----
     match /gapAdministrators/{uid} {
-      allow read, create, update: if signedIn() && request.auth.uid == uid;
+      allow read, update: if signedIn() && request.auth.uid == uid;
+      allow create: if isGapAdmin();
       allow delete: if false;
     }
     match /gapCaseManagers/{uid} {
-      allow read, create, update: if signedIn() && request.auth.uid == uid;
+      allow read, update: if signedIn() && request.auth.uid == uid;
+      allow create: if isGapAdmin();
       allow delete: if false;
     }
     match /financeApprovers/{uid} {
-      allow read, create, update: if signedIn() && request.auth.uid == uid;
+      allow read, update: if signedIn() && request.auth.uid == uid;
+      allow create: if isGapAdmin();
       allow delete: if false;
     }
     match /grnswAuditors/{uid} {
-      allow read, create, update: if signedIn() && request.auth.uid == uid;
+      allow read, update: if signedIn() && request.auth.uid == uid;
+      allow create: if isGapAdmin();
       allow delete: if false;
     }
     match /veterinaryPractices/{uid} {
