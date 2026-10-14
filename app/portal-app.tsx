@@ -198,9 +198,9 @@ export default function PortalApp() {
     catch (err) { setToast(err instanceof Error ? err.message : "Could not accept this work order."); }
     setReviewOrderId(null);
   }
-  async function rejectReviewOrder(order: WorkOrder) {
+  async function rejectReviewOrder(order: WorkOrder, reason?: string) {
     if (!session) return;
-    try { await rejectWorkOrder(order.id, { name: session.fullName, role: session.role, uid: session.uid }); setToast(`${order.id} declined`); }
+    try { await rejectWorkOrder(order.id, { name: session.fullName, role: session.role, uid: session.uid }, reason); setToast(`${order.id} declined`); }
     catch (err) { setToast(err instanceof Error ? err.message : "Could not decline this work order."); }
     setReviewOrderId(null);
   }
@@ -329,7 +329,7 @@ export default function PortalApp() {
       vets={vets}
       onClose={() => setReviewOrderId(null)}
       onAccept={() => acceptReviewOrder(reviewOrder)}
-      onReject={() => rejectReviewOrder(reviewOrder)}
+      onReject={reason => rejectReviewOrder(reviewOrder, reason)}
       onReassign={vetUid => reassignReviewOrder(reviewOrder, vetUid)}
     />}
     {toast ? <div className={`toast ${toast.includes("incorrect") ? "error" : ""}`} role="status">{toast}</div> : null}
