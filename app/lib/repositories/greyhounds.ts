@@ -1,6 +1,6 @@
 "use client";
 
-import { collection, doc, DocumentData, onSnapshot, orderBy, query, serverTimestamp, setDoc } from "firebase/firestore";
+import { collection, doc, DocumentData, onSnapshot, orderBy, query, runTransaction, serverTimestamp } from "firebase/firestore";
 import { db } from "../firebase";
 import { DATA_COLLECTIONS, Greyhound } from "../../shared/types";
 import { Actor, writeAuditEntry } from "./shared";
@@ -20,6 +20,11 @@ export function subscribeGreyhounds(onValue: (greyhounds: Greyhound[]) => void, 
 
 export async function createGreyhound(greyhound: Greyhound, actor: Actor): Promise<void> {
   const { id, ...fields } = greyhound;
-  await setDoc(doc(greyhoundsCol(), id), { ...fields, createdAt: serverTimestamp() });
+  const greyhoundRef = doc(greyhoundsCol(), id);
+  await runTransaction(db, async transaction => {
+    const snapshot = await transaction.get(greyhoundRef);
+    if (snapshot.exists()) throw new Error("A greyhound with this GAP reference already exists.");
+    transaction.set(greyhoundRef, { ...fields, createdAt: serverTimestamp() });
+  });
   await writeAuditEntry(actor, "Added greyhound", id);
 }
