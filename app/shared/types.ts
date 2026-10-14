@@ -96,7 +96,13 @@ export function isVisibleToSession(session: Pick<UserProfile, "role" | "practice
   return Boolean(session.practice) && recordPractice === session.practice;
 }
 
-export type Invoice = { id: string; workOrder: string; practice: string; amount: number; status: string; version: number; date: string };
+export type Invoice = {
+  id: string; workOrder: string; practice: string; amount: number; status: string; version: number; date: string;
+  // Set when the invoice amount exceeds the linked work order's spending
+  // limit — still allowed through, just flagged for reviewers (additional
+  // spending requires GAP approval).
+  overLimit?: boolean;
+};
 
 export type Notice = {
   id: string; text: string; time: string; read: boolean;

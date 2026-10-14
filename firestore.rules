@@ -64,7 +64,8 @@ service cloud.firestore {
     // submit new ones for it; only GAP staff review (approve/reject) them. ----
     match /invoices/{invoiceId} {
       allow read: if isGapStaff() || (isVet() && resource.data.practice == myPractice());
-      allow create: if isVet() && request.resource.data.practice == myPractice() && request.resource.data.status == 'Submitted';
+      allow create: if isVet() && request.resource.data.practice == myPractice() && request.resource.data.status == 'Submitted'
+        && request.resource.data.amount > 0;
       allow update: if isGapStaff();
       allow delete: if false;
     }
