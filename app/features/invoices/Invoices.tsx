@@ -17,7 +17,7 @@ export function Invoices({ invoices, role, update, setModal }: { invoices: Invoi
         <tbody>{invoices.map(i => <tr key={i.id}>
           <td><b>{i.id}</b></td><td>{i.workOrder}</td><td>{i.practice}</td><td>{i.date}</td><td>v{i.version}</td><td><b>{money(i.amount)}</b></td>
           <td><span className={badge(i.status)}>{i.status}</span></td>
-          <td>{role === "Finance Approver" && i.status === "Submitted" ? <div className="mini-actions"><button onClick={() => update(i.id, "Approved — Coupa pending")}>Approve</button><button onClick={() => update(i.id, "Rejected")}>Reject</button></div> : <button className="table-link">View</button>}</td>
+          <td>{(role === "Finance Approver" || role === "GAP Administrator") && i.status === "Submitted" ? <div className="mini-actions"><button onClick={() => update(i.id, "Approved — Coupa pending")}>Approve</button><button onClick={() => update(i.id, "Rejected")}>Reject</button></div> : <button className="table-link">View</button>}</td>
         </tr>)}</tbody>
       </table>
       {!invoices.length ? <div className="empty"><b>No invoices yet</b><span>Submitted invoices will appear here for review.</span></div> : null}
