@@ -6,6 +6,7 @@ import { DATA_COLLECTIONS, Invoice, UserProfile } from "../../shared/types";
 import { Actor, generateFriendlyId } from "./shared";
 
 const invoicesCol = () => collection(db, DATA_COLLECTIONS.invoices);
+const workOrdersCol = () => collection(db, DATA_COLLECTIONS.workOrders);
 const auditLogCol = () => collection(db, DATA_COLLECTIONS.auditLog);
 const notificationsCol = () => collection(db, DATA_COLLECTIONS.notifications);
 
@@ -34,10 +35,13 @@ export function subscribeInvoices(
 export async function createInvoice(fields: { workOrder: string; practice: string; amount: number }, actor: Actor): Promise<void> {
   const id = generateFriendlyId("INV");
   const invoiceRef = doc(invoicesCol(), id);
+  const workOrderRef = doc(workOrdersCol(), fields.workOrder);
   const auditRef = doc(auditLogCol());
   const noticeRef = doc(notificationsCol());
   const invoice = { ...fields, status: "Submitted", version: 1, date: new Date().toLocaleDateString("en-AU") };
   await runTransaction(db, async transaction => {
+    const workOrderSnapshot = await transaction.get(workOrderRef);
+    if (!workOrderSnapshot.exists()) throw new Error("That work order no longer exists.");
     transaction.set(invoiceRef, { ...invoice, createdAt: serverTimestamp() });
     transaction.set(auditRef, auditEntry(actor, "Submitted invoice", id));
     transaction.set(noticeRef, { text: `${id} was submitted for finance review`, time: "Just now", read: false, staffOnly: true, createdAt: serverTimestamp() });
