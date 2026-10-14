@@ -19,7 +19,7 @@ export function Auth({
   toast: string;
   practices: string[][];
 }) {
-  if (screen === "forgot") return <div className="auth-page">
+  if (screen === "forgot") return <main className="auth-page">
     <div className="auth-brand"><div className="brand-mark large">G</div><h1>GAP Emergency<br />Veterinary Portal</h1><p>Secure coordination for emergency greyhound care.</p></div>
     <div className="auth-card">
       <button className="back-link" onClick={() => setScreen("login")}>← Back to sign in</button>
@@ -31,18 +31,18 @@ export function Auth({
       </form>
     </div>
     {toast ? <div className={`toast ${toast.includes("error") ? "error" : ""}`}>{toast}</div> : null}
-  </div>;
+  </main>;
 
-  if (screen === "sent") return <div className="auth-page">
+  if (screen === "sent") return <main className="auth-page">
     <div className="auth-card success-card">
       <div className="success-icon">✓</div>
       <h2>Check your inbox</h2>
       <p>If that address belongs to an account, reset instructions have been sent.</p>
       <button className="primary" onClick={() => setScreen("login")}>Return to sign in</button>
     </div>
-  </div>;
+  </main>;
 
-  if (screen === "signup") return <div className="auth-page">
+  if (screen === "signup") return <main className="auth-page">
     <section className="auth-brand">
       <div className="brand-mark large">G</div>
       <p className="eyebrow">GREYHOUNDS AS PETS NSW</p>
@@ -57,9 +57,9 @@ export function Auth({
       <p className="authorised"><button type="button" className="link-button" onClick={() => setScreen("login")}>← Already have an account? Sign in</button></p>
     </section>
     {toast ? <div className={`toast ${toast.toLowerCase().includes("error") || toast.toLowerCase().includes("match") || toast.toLowerCase().includes("incorrect") ? "error" : ""}`}>{toast}</div> : null}
-  </div>;
+  </main>;
 
-  return <div className="auth-page">
+  return <main className="auth-page">
     <section className="auth-brand">
       <div className="brand-mark large">G</div>
       <p className="eyebrow">GREYHOUNDS AS PETS NSW</p>
@@ -85,7 +85,7 @@ export function Auth({
       <p className="authorised">Authorised internal use only. Activity may be recorded for governance and welfare assurance.</p>
     </section>
     {toast ? <div className={`toast ${toast.includes("incorrect") ? "error" : ""}`}>{toast}</div> : null}
-  </div>;
+  </main>;
 }
 
 function SignupForm({ onSubmit, practices }: { onSubmit: (e: FormEvent<HTMLFormElement>) => void; practices: string[][] }) {
