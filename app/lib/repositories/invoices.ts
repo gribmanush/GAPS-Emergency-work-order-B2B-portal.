@@ -42,6 +42,15 @@ export async function createInvoice(fields: { workOrder: string; practice: strin
     transaction.set(auditRef, auditEntry(actor, "Submitted invoice", id));
     transaction.set(noticeRef, { text: `${id} was submitted for finance review`, time: "Just now", read: false, staffOnly: true, createdAt: serverTimestamp() });
   });
+  // TODO: Queue an email to GAP staff here once there's a real recipient to
+  // send it to. There is currently no single email address or distribution
+  // list for a role in this data model (roles are collections of individual
+  // accounts — gapAdministrators/gapCaseManagers/financeApprovers/
+  // grnswAuditors — not a mailing list), so guessing at a recipient here
+  // would be worse than leaving it unwired. Revisit once a staff
+  // notification list/email exists (e.g. a per-role distribution address,
+  // or looking up every account in financeApprovers and queuing one email
+  // per address).
 }
 
 export async function reviewInvoice(invoiceId: string, status: string, actor: Actor): Promise<void> {

@@ -127,6 +127,15 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
+    // ---- Mail queue for the Firebase "Trigger Email" extension: the app
+    // only ever writes a new document here, it never needs to read one back —
+    // the extension's own backend process uses admin privileges and bypasses
+    // these rules entirely to pick them up and send them. ----
+    match /mail/{mailId} {
+      allow create: if signedIn();
+      allow read, update, delete: if false;
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }
