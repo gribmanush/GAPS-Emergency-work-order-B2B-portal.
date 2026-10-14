@@ -5,7 +5,7 @@
 "use client";
 
 import { FormEvent, useState } from "react";
-import { PASSWORD_REQUIREMENTS } from "../../contributions/ankita-auth";
+import { PASSWORD_REQUIREMENTS, signOutUser } from "../../contributions/ankita-auth";
 import { Role, roles, vetSpecialties } from "../../shared/types";
 
 export function Auth({
@@ -39,6 +39,15 @@ export function Auth({
       <h2>Check your inbox</h2>
       <p>If that address belongs to an account, reset instructions have been sent.</p>
       <button className="primary" onClick={() => setScreen("login")}>Return to sign in</button>
+    </div>
+  </div>;
+
+  if (screen === "account-not-set-up") return <div className="auth-page">
+    <div className="auth-card success-card">
+      <div className="success-icon">!</div>
+      <h2>Account not set up</h2>
+      <p>Your account hasn&rsquo;t been fully set up yet. Contact a GAP Administrator to finish setting up your access.</p>
+      <button className="primary" onClick={() => signOutUser()}>Sign out</button>
     </div>
   </div>;
 
