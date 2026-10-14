@@ -13,9 +13,10 @@ export function Invoices({ invoices, role, update, setModal }: { invoices: Invoi
     <div className="notice-banner"><b>Coupa integration paused</b><span>Approved invoices remain at “Approved — Coupa pending”. No external financial data is transmitted.</span></div>
     <div className="table-card">
       <table>
-        <thead><tr><th>Invoice</th><th>Work order</th><th>Practice</th><th>Date</th><th>Version</th><th>Total</th><th>Status</th><th>Actions</th></tr></thead>
+        <thead><tr><th>Invoice</th><th>Work order</th><th>Practice</th><th>Date</th><th>Version</th><th>Total</th><th>File</th><th>Status</th><th>Actions</th></tr></thead>
         <tbody>{invoices.map(i => <tr key={i.id}>
           <td><b>{i.id}</b></td><td>{i.workOrder}</td><td>{i.practice}</td><td>{i.date}</td><td>v{i.version}</td><td><b>{money(i.amount)}</b></td>
+          <td>{i.fileData ? <a href={i.fileData} download={i.fileName}>{i.fileName}</a> : "—"}</td>
           <td><span className={badge(i.status)}>{i.status}</span></td>
           <td>{role === "Finance Approver" && i.status === "Submitted" ? <div className="mini-actions"><button onClick={() => update(i.id, "Approved — Coupa pending")}>Approve</button><button onClick={() => update(i.id, "Rejected")}>Reject</button></div> : <button className="table-link">View</button>}</td>
         </tr>)}</tbody>
