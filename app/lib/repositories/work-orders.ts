@@ -7,7 +7,7 @@
 "use client";
 
 import {
-  collection, doc, DocumentData, onSnapshot, orderBy, query,
+  collection, doc, DocumentData, getDocs, onSnapshot, orderBy, query,
   runTransaction, serverTimestamp, where,
 } from "firebase/firestore";
 import { db } from "../firebase";
@@ -17,8 +17,15 @@ import { queueEmail } from "./mail";
 import { Actor, generateFriendlyId } from "./shared";
 
 const workOrdersCol = () => collection(db, DATA_COLLECTIONS.workOrders);
+const invoicesCol = () => collection(db, DATA_COLLECTIONS.invoices);
 const auditLogCol = () => collection(db, DATA_COLLECTIONS.auditLog);
 const notificationsCol = () => collection(db, DATA_COLLECTIONS.notifications);
+
+// The approved-invoice status string, exactly as Invoices.tsx's Finance
+// Approver "Approve" action writes it via reviewInvoice() - Coupa submission
+// itself stays deferred for this build, so the invoice sits at this status
+// once approved rather than moving further.
+const INVOICE_APPROVED_STATUS = "Approved — Coupa pending";
 
 function normalise(id: string, data: DocumentData): WorkOrder {
   return { ...(data as Omit<WorkOrder, "id">), id };
@@ -181,6 +188,14 @@ export async function advanceWorkOrderStatus(orderId: string, to: WorkOrderStatu
   const orderRef = doc(workOrdersCol(), orderId);
   const auditRef = doc(auditLogCol());
   const noticeRef = doc(notificationsCol());
+  // Closing a work order must wait for its invoice to actually be approved -
+  // Firestore transactions can't run an arbitrary query, so this is checked
+  // up front, before the transaction starts.
+  if (to === "Closed") {
+    const invoiceSnapshot = await getDocs(query(invoicesCol(), where("workOrder", "==", orderId)));
+    const hasApprovedInvoice = invoiceSnapshot.docs.some(item => item.data().status === INVOICE_APPROVED_STATUS);
+    if (!hasApprovedInvoice) throw new Error("This work order's invoice hasn't been approved yet.");
+  }
   await runTransaction(db, async transaction => {
     const snapshot = await transaction.get(orderRef);
     if (!snapshot.exists()) throw new Error("Work order not found.");
