@@ -89,6 +89,25 @@ test("uses the configured GAP inbox for staff-facing events", async () => {
   } finally { globalThis.fetch = originalFetch; }
 });
 
+test("sends work order events to both the assigned vet and the GAP inbox once test mode is off", async () => {
+  const originalFetch = globalThis.fetch;
+  const calls = [];
+  globalThis.fetch = async (url, options = {}) => {
+    calls.push({ url: String(url), options });
+    if (String(url).includes("accounts:lookup")) return Response.json({ users: [{ localId: "uid-1" }] });
+    return Response.json({ id: "email-3" });
+  };
+  try {
+    const productionLikeEnv = { ...env, EMAIL_TEST_RECIPIENT: undefined };
+    const response = await handleEmailNotification(request({
+      event: "work_order_accepted", recordId: "WO-200", practice: "Riverside Vets", recipientEmail: "vet@example.com", recipientName: "Dr Vet",
+    }), productionLikeEnv);
+    assert.equal(response.status, 200);
+    const resendBody = JSON.parse(calls[1].options.body);
+    assert.deepEqual(resendBody.to.sort(), ["aanayv@gmail.com", "vet@example.com"]);
+  } finally { globalThis.fetch = originalFetch; }
+});
+
 test("returns a controlled error when Resend cannot be reached", async () => {
   const originalFetch = globalThis.fetch;
   globalThis.fetch = async url => {

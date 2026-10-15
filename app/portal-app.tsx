@@ -221,7 +221,7 @@ export default function PortalApp() {
     try {
       await advanceWorkOrderStatus(order.id, status, { name: session.fullName, role: session.role, uid: session.uid });
       const warning = session.role === "Veterinary Practice"
-        ? await emailWarning({ event: "work_order_status_updated", recordId: order.id, status, practice: session.practice })
+        ? await emailWarning({ event: "work_order_status_updated", recordId: order.id, status, practice: session.practice, recipientEmail: session.email, recipientName: session.fullName })
         : "";
       setToast(`${order.id} updated${warning}`);
     }
@@ -231,7 +231,7 @@ export default function PortalApp() {
     if (!session) return;
     try {
       await acceptWorkOrder(order.id, { name: session.fullName, role: session.role, uid: session.uid });
-      const warning = await emailWarning({ event: "work_order_accepted", recordId: order.id, practice: session.practice });
+      const warning = await emailWarning({ event: "work_order_accepted", recordId: order.id, practice: session.practice, recipientEmail: session.email, recipientName: session.fullName });
       setToast(`${order.id} accepted${warning}`);
     }
     catch (err) { setToast(err instanceof Error ? err.message : "Could not accept this work order."); }
@@ -241,7 +241,7 @@ export default function PortalApp() {
     if (!session) return;
     try {
       await rejectWorkOrder(order.id, { name: session.fullName, role: session.role, uid: session.uid }, reason);
-      const warning = await emailWarning({ event: "work_order_rejected", recordId: order.id, practice: session.practice });
+      const warning = await emailWarning({ event: "work_order_rejected", recordId: order.id, practice: session.practice, recipientEmail: session.email, recipientName: session.fullName });
       setToast(`${order.id} declined${warning}`);
     }
     catch (err) { setToast(err instanceof Error ? err.message : "Could not decline this work order."); }

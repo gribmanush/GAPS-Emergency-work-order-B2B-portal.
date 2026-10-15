@@ -95,20 +95,43 @@ async function proxyToSharedEmailService(request: Request, endpoint: string) {
   }
 }
 
+// "both" = every work order event goes to the assigned vet AND the GAP
+// admin inbox - whoever raised it already knows, but the other party always
+// needs telling. Invoice events keep a single audience for now.
 function messageFor(input: EmailRequest) {
   const id = clean(input.recordId, 80);
   const status = clean(input.status, 80);
   const practice = clean(input.practice, 120);
-  const messages: Record<EmailEvent, { subject: string; heading: string; detail: string; audience: "gap" | "recipient" }> = {
-    work_order_assigned: { subject: `GAP work order ${id} assigned`, heading: "A new emergency work order has been assigned", detail: `Please sign in to review and respond to work order ${id}.`, audience: "recipient" },
-    work_order_reassigned: { subject: `GAP work order ${id} reassigned`, heading: "An emergency work order has been reassigned", detail: `Please sign in to review and respond to work order ${id}.`, audience: "recipient" },
-    work_order_accepted: { subject: `${id} accepted by the veterinary practice`, heading: "Work order accepted", detail: `${id}${practice ? ` has been accepted by ${practice}` : " has been accepted"}.`, audience: "gap" },
-    work_order_rejected: { subject: `${id} requires reassignment`, heading: "Work order declined", detail: `${id}${practice ? ` was declined by ${practice}` : " was declined"} and requires reassignment.`, audience: "gap" },
-    work_order_status_updated: { subject: `${id} status updated`, heading: "Work order status changed", detail: `${id} is now ${status || "updated"}.`, audience: "gap" },
+  const messages: Record<EmailEvent, { subject: string; heading: string; detail: string; audience: "gap" | "recipient" | "both" }> = {
+    work_order_assigned: { subject: `GAP work order ${id} assigned`, heading: "A new emergency work order has been assigned", detail: `Please sign in to review and respond to work order ${id}.`, audience: "both" },
+    work_order_reassigned: { subject: `GAP work order ${id} reassigned`, heading: "An emergency work order has been reassigned", detail: `Please sign in to review and respond to work order ${id}.`, audience: "both" },
+    work_order_accepted: { subject: `${id} accepted by the veterinary practice`, heading: "Work order accepted", detail: `${id}${practice ? ` has been accepted by ${practice}` : " has been accepted"}.`, audience: "both" },
+    work_order_rejected: { subject: `${id} requires reassignment`, heading: "Work order declined", detail: `${id}${practice ? ` was declined by ${practice}` : " was declined"} and requires reassignment.`, audience: "both" },
+    work_order_status_updated: { subject: `${id} status updated`, heading: "Work order status changed", detail: `${id} is now ${status || "updated"}.`, audience: "both" },
     invoice_submitted: { subject: `Invoice ${id} submitted`, heading: "A veterinary invoice is ready for review", detail: `${id}${practice ? ` from ${practice}` : ""} has been submitted for GAP finance review.`, audience: "gap" },
     invoice_reviewed: { subject: `Invoice ${id}: ${status || "reviewed"}`, heading: "Your invoice has been reviewed", detail: `${id} is now ${status || "reviewed"}. Sign in to view the decision and audit trail.`, audience: "recipient" },
   };
   return messages[input.event];
+}
+
+// Builds the real distinct recipient list (vet + GAP admin, whichever are
+// configured/provided) - except while EMAIL_TEST_RECIPIENT is set, which
+// collapses everything to that one verified inbox. That override exists
+// because the shared onboarding@resend.dev sender can only deliver to the
+// Resend account's own verified address until a real domain is verified;
+// removing EMAIL_TEST_RECIPIENT later needs no other code change here.
+function resolveRecipients(message: ReturnType<typeof messageFor>, input: EmailRequest, env: EmailEnv): string[] {
+  if (env.EMAIL_TEST_RECIPIENT) return [env.EMAIL_TEST_RECIPIENT];
+  const recipients = new Set<string>();
+  if (message.audience === "gap" || message.audience === "both") {
+    const gap = clean(env.GAP_NOTIFICATION_EMAIL, 254);
+    if (gap) recipients.add(gap);
+  }
+  if (message.audience === "recipient" || message.audience === "both") {
+    const recipient = clean(input.recipientEmail, 254);
+    if (recipient) recipients.add(recipient);
+  }
+  return Array.from(recipients);
 }
 
 export async function handleEmailNotification(request: Request, env: EmailEnv): Promise<Response> {
@@ -142,12 +165,8 @@ export async function handleEmailNotification(request: Request, env: EmailEnv): 
   }
 
   const message = messageFor(input);
-  const requestedRecipient = message.audience === "gap" ? env.GAP_NOTIFICATION_EMAIL : clean(input.recipientEmail, 254);
-  // While Resend's onboarding sender is used, route every message to the
-  // verified account address. Remove EMAIL_TEST_RECIPIENT only after a GAP
-  // domain is verified and the client approves real-user delivery.
-  const recipient = env.EMAIL_TEST_RECIPIENT || requestedRecipient;
-  if (!recipient) return json({ error: "No approved recipient is configured" }, 503);
+  const recipients = resolveRecipients(message, input, env);
+  if (!recipients.length) return json({ error: "No approved recipient is configured" }, 503);
 
   const greeting = clean(input.recipientName, 100);
   const html = `<!doctype html><html><body style="margin:0;background:#f3f7f8;font-family:Arial,sans-serif;color:#17323d"><div style="max-width:620px;margin:24px auto;background:#fff;border-radius:12px;overflow:hidden;border:1px solid #d8e4e8"><div style="background:#06384f;color:#fff;padding:22px 28px"><strong style="font-size:22px">GAP Emergency Portal</strong><div style="color:#9cdbea;margin-top:4px">Operational notification</div></div><div style="padding:28px"><p>${greeting ? `Hello ${escapeHtml(greeting)},` : "Hello,"}</p><h2>${escapeHtml(message.heading)}</h2><p style="line-height:1.6">${escapeHtml(message.detail)}</p><p style="line-height:1.6">This email contains no clinical attachments. Please sign in to the secure portal to view the complete record.</p><div style="margin-top:24px;padding-top:16px;border-top:1px solid #d8e4e8;color:#607883;font-size:12px">Greyhounds As Pets NSW · Automated message · Do not reply</div></div></div></body></html>`;
@@ -156,7 +175,7 @@ export async function handleEmailNotification(request: Request, env: EmailEnv): 
     const response = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: { "authorization": `Bearer ${resendApiKey}`, "content-type": "application/json" },
-      body: JSON.stringify({ from: emailFrom, to: [recipient], subject: message.subject, html }),
+      body: JSON.stringify({ from: emailFrom, to: recipients, subject: message.subject, html }),
     });
     const result = await response.json().catch(() => ({}));
     if (!response.ok) {
