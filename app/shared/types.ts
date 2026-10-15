@@ -139,6 +139,10 @@ export type Audit = { id: string; time: string; user: string; role: string; acti
 export type Incident = {
   id: string; occurredAt: string; type: string; location: string;
   greyhoundCount: number; priority: string; status: string; summary?: string;
+  greyhoundIds?: string[];
+  greyhoundNames?: string[];
+  reporterName?: string;
+  reporterContact?: string;
 };
 
 export type Greyhound = {

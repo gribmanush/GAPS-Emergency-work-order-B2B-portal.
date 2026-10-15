@@ -5,7 +5,8 @@ import { GenericForm } from "./GenericForm";
 import { WorkOrderForm } from "../features/work-orders/WorkOrderForm";
 import { InvoiceForm } from "../features/invoices/InvoiceForm";
 import { GreyhoundForm } from "../features/greyhounds/GreyhoundForm";
-import type { Invoice, WorkOrder } from "./types";
+import { EmergencyIncidentForm } from "../features/misc/EmergencyIncidentForm";
+import type { Greyhound, Invoice, WorkOrder } from "./types";
 import type { VetDirectoryEntry } from "../lib/vet-directory";
 
 const titles: Record<string, string> = {
@@ -16,10 +17,13 @@ const titles: Record<string, string> = {
   practice: "Register veterinary practice",
 };
 
-export function Modal({ type, close, submit, invoiceContext, vets }: { type: string; close: () => void; submit: (d: Record<string, FormDataEntryValue>) => void; invoiceContext?: { orders: WorkOrder[]; invoices: Invoice[]; practice?: string }; vets?: VetDirectoryEntry[] }) {
+export function Modal({ type, close, submit, invoiceContext, vets, greyhounds }: { type: string; close: () => void; submit: (d: Record<string, FormDataEntryValue>) => void; invoiceContext?: { orders: WorkOrder[]; invoices: Invoice[]; practice?: string }; vets?: VetDirectoryEntry[]; greyhounds?: Greyhound[] }) {
   function go(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    submit(Object.fromEntries(new FormData(e.currentTarget)));
+    const formData = new FormData(e.currentTarget);
+    const values = Object.fromEntries(formData);
+    if (type === "incident") values.greyhoundIds = formData.getAll("greyhoundIds").join(",");
+    submit(values);
   }
   return <div className="modal-backdrop" onMouseDown={e => { if (e.target === e.currentTarget) close(); }}>
     <div className="modal" role="dialog" aria-modal="true" aria-label={titles[type]}>
@@ -28,7 +32,7 @@ export function Modal({ type, close, submit, invoiceContext, vets }: { type: str
         <button onClick={close} aria-label="Close">×</button>
       </div>
       <form onSubmit={go}>
-        {type === "work-order" ? <WorkOrderForm vets={vets || []} /> : type === "invoice" && invoiceContext ? <InvoiceForm {...invoiceContext} /> : type === "greyhound" ? <GreyhoundForm /> : <GenericForm type={type} />}
+        {type === "work-order" ? <WorkOrderForm vets={vets || []} /> : type === "invoice" && invoiceContext ? <InvoiceForm {...invoiceContext} /> : type === "greyhound" ? <GreyhoundForm /> : type === "incident" ? <EmergencyIncidentForm greyhounds={greyhounds || []} /> : <GenericForm />}
         <div className="modal-actions">
           <button type="button" className="secondary" onClick={close}>Cancel</button>
           <button className="primary">Save record</button>

@@ -13,7 +13,6 @@ import {
 import { db } from "../firebase";
 import { canAdvanceWorkOrder, DATA_COLLECTIONS, UserProfile, WorkOrder, WorkOrderStatus } from "../../shared/types";
 import type { VetDirectoryEntry } from "../vet-directory";
-import { queueEmail } from "./mail";
 import { Actor, generateFriendlyId } from "./shared";
 
 const workOrdersCol = () => collection(db, DATA_COLLECTIONS.workOrders);
@@ -72,7 +71,7 @@ export async function createWorkOrder(
   fields: { incident: string; dogs: string[]; priority: string; due: string; limit: number; service: string; notes: string },
   vet: VetDirectoryEntry | null,
   actor: Actor,
-): Promise<void> {
+): Promise<string> {
   const id = generateFriendlyId("WO");
   const order: Omit<WorkOrder, "id"> = {
     ...fields,
@@ -93,15 +92,7 @@ export async function createWorkOrder(
       transaction.set(noticeRef, { text: `${id} was assigned to you`, time: "Just now", read: false, recipientUid: vet.uid, workOrderId: id, createdAt: serverTimestamp() });
     }
   });
-  // Pooled orders have no single recipient, so email is only queued for a
-  // direct assignment.
-  if (vet && vet.email) {
-    await queueEmail(
-      vet.email,
-      `New work order assigned: ${id}`,
-      `You have been assigned a new work order.\n\nIncident: ${fields.incident}\nPriority: ${fields.priority}\nDue: ${fields.due}`,
-    );
-  }
+  return id;
 }
 
 export async function claimWorkOrder(

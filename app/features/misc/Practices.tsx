@@ -12,7 +12,7 @@ export function Practices({ practices, role, setModal, onApprove }: { practices:
   const filtered = practices.filter(p => practiceToRow(p).join(" ").toLowerCase().includes(q.toLowerCase()));
   const isAdmin = role === "GAP Administrator";
   return <>
-    <PageHead title="Veterinary practices" subtitle="Approved emergency veterinary network" action={isAdmin ? "Register practice" : undefined} onAction={() => setModal("practice")} />
+    <PageHead title="Veterinary practices" subtitle="Register and govern the veterinary organisations whose verified clinicians can receive work orders" action={isAdmin ? "Register practice" : undefined} onAction={() => setModal("practice")} />
     <div className="toolbar">
       <div className="local-search">⌕ <input value={q} onChange={e => setQ(e.target.value)} placeholder="Search veterinary practices…" /></div>
       <button className="secondary" onClick={() => downloadCsv("Veterinary practices.csv", practices.map(practiceToRow))}>⇩ Export CSV</button>
