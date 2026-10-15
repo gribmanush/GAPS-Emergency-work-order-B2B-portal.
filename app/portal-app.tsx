@@ -334,6 +334,7 @@ export default function PortalApp() {
         {route === "work-order-pool" && <WorkOrderPool orders={poolOrders} role={session.role} vets={vets} onClaim={claimPoolOrder} onAssign={assignPoolOrder} setModal={setModal} />}
         {route === "greyhounds" && <Greyhounds
           rows={greyhounds.map(greyhoundToRow)}
+          search={search}
           readOnly={isReadOnly || !canManageGreyhoundDirectory}
           setModal={setModal}
           userName={session.fullName}
@@ -348,7 +349,7 @@ export default function PortalApp() {
           try { await approvePractice(id, actor); setToast(`${id} approved and activated`); }
           catch (err) { setToast(err instanceof Error ? err.message : "Could not approve this practice."); }
         }} />}
-        {route === "invoices" && <Invoices invoices={visibleInvoices} role={session.role} update={async (id, status) => {
+        {route === "invoices" && <Invoices invoices={visibleInvoices} search={search} role={session.role} update={async (id, status) => {
           if (!actor) return;
           try { await reviewInvoice(id, status, actor); setToast(`${id}: ${status}`); }
           catch (err) { setToast(err instanceof Error ? err.message : "Could not update this invoice."); }
