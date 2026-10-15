@@ -74,6 +74,12 @@ export default function PortalApp() {
     return onAuthStateChanged(auth, async (user) => {
       if (!user) { setSession(null); setScreen("login"); return; }
       const profile = await loadProfile(user.uid, user.email || "");
+      if (!profile) {
+        // No real Firestore profile doc for this account (e.g. one created
+        // directly in the Firebase console) — fail closed, never grant a
+        // fabricated session.
+        setSession(null); setScreen("account-not-set-up"); return;
+      }
       setSession(profile); setScreen("app"); setRoute("dashboard");
       // onAuthStateChanged can re-fire for the same signed-in user (e.g. a
       // token refresh, or React 18 Strict Mode's double effect invocation in
