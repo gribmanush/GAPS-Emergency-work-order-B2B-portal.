@@ -1,6 +1,6 @@
 "use client";
 
-import { collection, doc, DocumentData, onSnapshot, orderBy, query, serverTimestamp, setDoc } from "firebase/firestore";
+import { collection, doc, DocumentData, onSnapshot, orderBy, query, serverTimestamp, setDoc, updateDoc } from "firebase/firestore";
 import { db } from "../firebase";
 import { DATA_COLLECTIONS, Practice } from "../../shared/types";
 import { Actor, writeAuditEntry } from "./shared";
@@ -22,4 +22,12 @@ export async function registerPractice(practice: Practice, actor: Actor): Promis
   const { id, ...fields } = practice;
   await setDoc(doc(practicesCol(), id), { ...fields, createdAt: serverTimestamp() });
   await writeAuditEntry(actor, "Registered veterinary practice", practice.name);
+}
+
+// Lets a GAP Administrator move a newly registered practice out of its
+// permanent "Pending/Inactive" state — without this, the practice can never
+// appear in the sign-up form's "Approved" + "Active" practice dropdown.
+export async function approvePractice(id: string, actor: Actor): Promise<void> {
+  await updateDoc(doc(practicesCol(), id), { approval: "Approved", operations: "Active" });
+  await writeAuditEntry(actor, "Approved veterinary practice", id);
 }
