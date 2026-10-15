@@ -1,3 +1,5 @@
+import type { Timestamp } from "firebase/firestore";
+
 export type Role = "GAP Administrator" | "GAP Case Manager" | "Veterinary Practice" | "Finance Approver" | "GRNSW Auditor";
 
 export type VetSpecialty = "Small Animals" | "Equine" | "Livestock" | "Exotic" | "Surgery";
@@ -69,6 +71,9 @@ export type WorkOrder = {
   // the shared work order pool (visible to every vet) until someone claims it,
   // or GAP staff assigns it directly.
   isPooled?: boolean;
+  // Set by the repository layer (serverTimestamp()) at creation; absent/null
+  // for the brief window before the server assigns it.
+  createdAt?: Timestamp | null;
 };
 
 // A vet can only ever see/act on work orders currently assigned to their own
@@ -96,7 +101,12 @@ export function isVisibleToSession(session: Pick<UserProfile, "role" | "practice
   return Boolean(session.practice) && recordPractice === session.practice;
 }
 
-export type Invoice = { id: string; workOrder: string; practice: string; amount: number; status: string; version: number; date: string };
+export type Invoice = {
+  id: string; workOrder: string; practice: string; amount: number; status: string; version: number; date: string;
+  // Set by the repository layer (serverTimestamp()) at creation; absent/null
+  // for the brief window before the server assigns it.
+  createdAt?: Timestamp | null;
+};
 
 export type Notice = {
   id: string; text: string; time: string; read: boolean;
