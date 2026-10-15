@@ -158,6 +158,10 @@ export default function PortalApp() {
   useEffect(() => { if (toast) { const t = setTimeout(() => setToast(""), 3200); return () => clearTimeout(t); } }, [toast]);
 
   const isReadOnly = session?.role === "GRNSW Auditor";
+  // The greyhound directory belongs to GAP staff (see canManageGreyhoundRecords
+  // in shared/types.ts) - a vet only ever edits medical records for greyhounds
+  // they're treating, never adds/overwrites directory entries.
+  const canManageGreyhoundDirectory = session?.role === "GAP Administrator" || session?.role === "GAP Case Manager";
   const actor = session ? { name: session.fullName, role: session.role } : null;
 
   async function login(e: FormEvent<HTMLFormElement>) {
@@ -253,7 +257,10 @@ export default function PortalApp() {
           summary: String(data.summary || ""),
         }, actor);
       }
-      if (modal === "greyhound") { await createGreyhound(createGreyhoundRecord(data), actor); }
+      if (modal === "greyhound") {
+        if (!canManageGreyhoundDirectory) { setToast("Only GAP staff can add greyhounds to the directory."); setModal(null); return; }
+        await createGreyhound(createGreyhoundRecord(data), actor);
+      }
       if (modal === "practice") {
         const name = String(data.tradingName || data.legalName);
         await registerPractice({ id: name, name, approval: "Pending", operations: "Inactive", coverage: String(data.coverage), supplierRef: "Not mapped", avgResponse: "—" }, actor);
@@ -299,7 +306,7 @@ export default function PortalApp() {
         {route === "work-order-pool" && <WorkOrderPool orders={poolOrders} role={session.role} vets={vets} onClaim={claimPoolOrder} onAssign={assignPoolOrder} setModal={setModal} />}
         {route === "greyhounds" && <Greyhounds
           rows={greyhounds.map(greyhoundToRow)}
-          readOnly={isReadOnly}
+          readOnly={isReadOnly || !canManageGreyhoundDirectory}
           setModal={setModal}
           userName={session.fullName}
           medicalRecords={medicalRecords}
