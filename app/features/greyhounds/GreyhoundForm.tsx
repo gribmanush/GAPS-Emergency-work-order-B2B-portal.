@@ -7,7 +7,7 @@
 export function GreyhoundForm() {
   return <div className="form-grid">
     <label>GAP reference<input name="ref" required /></label>
-    <label>Microchip number<input name="microchip" /></label>
+    <label>Microchip number<input name="microchip" pattern="\d{15}" title="Enter a 15-digit ISO microchip number" /><small>15-digit ISO microchip number</small></label>
     <label>Pet name<input name="petName" required /></label>
     <label>Racing name<input name="racingName" /></label>
     <label className="full">Health alerts<textarea name="alerts" rows={3} /></label>
