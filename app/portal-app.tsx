@@ -22,6 +22,7 @@ import { WorkOrderPool } from "./features/work-orders/WorkOrderPool";
 import { OrderDetail } from "./features/work-orders/OrderDetail";
 import { WorkOrderReviewModal } from "./features/work-orders/WorkOrderReviewModal";
 import { Invoices } from "./features/invoices/Invoices";
+import { InvoiceDetailModal } from "./features/invoices/InvoiceDetailModal";
 import { Greyhounds } from "./features/greyhounds/Greyhounds";
 import { Incidents } from "./features/misc/Incidents";
 import { Practices } from "./features/misc/Practices";
@@ -65,6 +66,7 @@ export default function PortalApp() {
   const [search, setSearch] = useState("");
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [reviewOrderId, setReviewOrderId] = useState<string | null>(null);
+  const [viewInvoiceId, setViewInvoiceId] = useState<string | null>(null);
   const [modal, setModal] = useState<string | null>(null);
   const [toast, setToast] = useState("");
   const [collapsed, setCollapsed] = useState(false);
@@ -304,6 +306,7 @@ export default function PortalApp() {
   const visibleNotices = notices.filter(n => isNoticeVisible(session, n));
   const unread = visibleNotices.filter(n => !n.read).length;
   const reviewOrder = reviewOrderId ? orders.find(o => o.id === reviewOrderId) || null : null;
+  const viewInvoice = viewInvoiceId ? invoices.find(i => i.id === viewInvoiceId) || null : null;
   const assignedDogNames = Array.from(new Set(worklistOrders.flatMap(o => o.dogs)));
   const canManageRecords = (petName: string) => canManageGreyhoundRecords(session, petName, assignedDogNames);
 
@@ -349,8 +352,8 @@ export default function PortalApp() {
           if (!actor) return;
           try { await reviewInvoice(id, status, actor); setToast(`${id}: ${status}`); }
           catch (err) { setToast(err instanceof Error ? err.message : "Could not update this invoice."); }
-        }} setModal={setModal} />}
-        {route === "notifications" && <Notifications notices={visibleNotices} onMarkRead={markNotificationRead} onMarkAll={() => markAllNotificationsRead(session, notices)} onOpenWorkOrder={setReviewOrderId} />}
+        }} setModal={setModal} onView={i => setViewInvoiceId(i.id)} />}
+        {route === "notifications" && <Notifications notices={visibleNotices} onMarkRead={markNotificationRead} onMarkAll={() => markAllNotificationsRead(session, notices)} onOpenWorkOrder={setReviewOrderId} onOpenInvoice={setViewInvoiceId} />}
         {route === "reports" && <Reports orders={orders} invoices={invoices} practices={practices} />}
         {route === "audit" && <AuditLog rows={audits} />}
         {route === "settings" && <Settings />}
@@ -368,6 +371,7 @@ export default function PortalApp() {
       onReject={() => rejectReviewOrder(reviewOrder)}
       onReassign={vetUid => reassignReviewOrder(reviewOrder, vetUid)}
     />}
+    {viewInvoice && <InvoiceDetailModal invoice={viewInvoice} onClose={() => setViewInvoiceId(null)} />}
     {toast ? <div className={`toast ${toast.includes("incorrect") ? "error" : ""}`} role="status">{toast}</div> : null}
     <footer>Prototype demonstration. Not for operational or clinical use. Coupa integration is deferred for this build.</footer>
   </div>;

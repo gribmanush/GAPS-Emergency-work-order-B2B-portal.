@@ -119,6 +119,7 @@ export type Notice = {
   recipientUid?: string; // set for a notice meant for exactly one person (e.g. "you've been assigned this")
   staffOnly?: boolean; // set for a notice meant for any GAP staff role, never a vet
   workOrderId?: string; // lets clicking the notice open the related work order
+  invoiceId?: string; // lets clicking the notice open the related invoice
 };
 
 // Priority: a personally-addressed notice beats everything else; a staff-only

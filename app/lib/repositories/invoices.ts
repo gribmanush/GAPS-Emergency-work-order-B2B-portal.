@@ -48,7 +48,7 @@ export async function createInvoice(fields: { workOrder: string; practice: strin
     const invoice = { ...fields, status: "Submitted", version: 1, date: new Date().toLocaleDateString("en-AU"), overLimit, submittedByUid: actor.uid };
     transaction.set(invoiceRef, { ...invoice, createdAt: serverTimestamp() });
     transaction.set(auditRef, auditEntry(actor, "Submitted invoice", id));
-    transaction.set(noticeRef, { text: `${id} was submitted for finance review`, time: "Just now", read: false, staffOnly: true, createdAt: serverTimestamp() });
+    transaction.set(noticeRef, { text: `${id} was submitted for finance review`, time: "Just now", read: false, staffOnly: true, invoiceId: id, createdAt: serverTimestamp() });
   });
   // TODO: Queue an email to GAP staff here once there's a real recipient to
   // send it to. There is currently no single email address or distribution
@@ -71,6 +71,6 @@ export async function reviewInvoice(invoiceId: string, status: string, actor: Ac
     const invoice = normalise(invoiceId, snapshot.data());
     transaction.update(invoiceRef, { status });
     transaction.set(auditRef, auditEntry(actor, `${status} invoice`, invoiceId));
-    transaction.set(noticeRef, { text: `${invoiceId} is now ${status}`, time: "Just now", read: false, practice: invoice.practice, recipientUid: invoice.submittedByUid, createdAt: serverTimestamp() });
+    transaction.set(noticeRef, { text: `${invoiceId} is now ${status}`, time: "Just now", read: false, practice: invoice.practice, recipientUid: invoice.submittedByUid, invoiceId, createdAt: serverTimestamp() });
   });
 }
