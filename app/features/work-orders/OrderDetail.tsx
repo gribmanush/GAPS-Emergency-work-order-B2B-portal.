@@ -6,6 +6,7 @@
 
 import { useState } from "react";
 import { badge, Greyhound, isWorkOrderStageAtLeast, money, Role, WORK_ORDER_SEQUENCE, WorkOrder, WorkOrderStatus, workOrderStageIndex } from "../../shared/types";
+import { formatDue } from "../../shared/time";
 import { TabContent } from "./TabContent";
 
 export function OrderDetail({ order, role, back, transition, setModal, greyhounds }: { order: WorkOrder; role: Role; back: () => void; transition: (o: WorkOrder, s: WorkOrderStatus) => void; setModal: (m: string) => void; greyhounds: Greyhound[] }) {
@@ -44,7 +45,7 @@ export function OrderDetail({ order, role, back, transition, setModal, greyhound
           <div><dt>Assigned vet</dt><dd>{order.assignedVetName}</dd></div>
           <div><dt>Veterinary practice</dt><dd>{order.practice}</dd></div>
           <div><dt>Requested service</dt><dd>{order.service}</dd></div>
-          <div><dt>Response required</dt><dd>{order.due}</dd></div>
+          <div><dt>Response required</dt><dd>{formatDue(order.due)}</dd></div>
         </dl>
         <h3>Instructions</h3><p>{order.notes}</p>
       </section>

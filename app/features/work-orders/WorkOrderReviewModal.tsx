@@ -8,6 +8,7 @@
 
 import { useState } from "react";
 import { money, Role, WorkOrder } from "../../shared/types";
+import { formatDue } from "../../shared/time";
 import type { VetDirectoryEntry } from "../../lib/vet-directory";
 
 export function WorkOrderReviewModal({
@@ -42,7 +43,7 @@ export function WorkOrderReviewModal({
           <div><dt>Greyhounds</dt><dd>{order.dogs.join(", ")}</dd></div>
           <div><dt>Priority</dt><dd>{order.priority}</dd></div>
           <div><dt>Requested service</dt><dd>{order.service}</dd></div>
-          <div><dt>Response required</dt><dd>{order.due}</dd></div>
+          <div><dt>Response required</dt><dd>{formatDue(order.due)}</dd></div>
           <div><dt>Authorised limit</dt><dd>{money(order.limit)}</dd></div>
         </dl>
         <h3>Instructions</h3><p>{order.notes || "No additional instructions."}</p>

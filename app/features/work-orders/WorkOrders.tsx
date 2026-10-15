@@ -8,6 +8,7 @@ import { useState } from "react";
 import { PageHead } from "../../shared/PageHead";
 import { badge, money, Role, WORK_ORDER_SEQUENCE, WorkOrder } from "../../shared/types";
 import { downloadCsv } from "../../shared/csv";
+import { formatDue } from "../../shared/time";
 
 export function WorkOrders({ orders, search, role, setSelected, setModal }: { orders: WorkOrder[]; search: string; role: Role; setSelected: (o: WorkOrder) => void; setModal: (m: string) => void }) {
   const [filter, setFilter] = useState("All");
@@ -21,7 +22,7 @@ export function WorkOrders({ orders, search, role, setSelected, setModal }: { or
     <div className="table-card">
       <table>
         <thead><tr><th>Work order</th><th>Greyhound(s)</th><th>Priority</th><th>Assigned vet</th><th>Status</th><th>Response</th><th>Limit</th><th></th></tr></thead>
-        <tbody>{list.map(o => <tr key={o.id} onClick={() => setSelected(o)}><td><button type="button" className="table-link" onClick={() => setSelected(o)}><b>{o.id}</b><small>{o.incident}</small></button></td><td>{o.dogs.join(", ")}<small>{o.dogs.length} greyhound{o.dogs.length > 1 ? "s" : ""}</small></td><td><span className={badge(o.priority)}>{o.priority}</span></td><td>{o.assignedVetName}<small>{o.practice}</small></td><td><span className={badge(o.status)}>{o.status}</span></td><td className={o.due === "Overdue" ? "danger" : ""}>{o.due}</td><td>{money(o.limit)}</td><td>›</td></tr>)}</tbody>
+        <tbody>{list.map(o => <tr key={o.id} onClick={() => setSelected(o)}><td><button type="button" className="table-link" onClick={() => setSelected(o)}><b>{o.id}</b><small>{o.incident}</small></button></td><td>{o.dogs.join(", ")}<small>{o.dogs.length} greyhound{o.dogs.length > 1 ? "s" : ""}</small></td><td><span className={badge(o.priority)}>{o.priority}</span></td><td>{o.assignedVetName}<small>{o.practice}</small></td><td><span className={badge(o.status)}>{o.status}</span></td><td className={o.due === "Overdue" ? "danger" : ""}>{formatDue(o.due)}</td><td>{money(o.limit)}</td><td>›</td></tr>)}</tbody>
       </table>
       {!list.length ? <div className="empty"><b>No matching work orders</b><span>Try changing the status filter or search term.</span></div> : null}
     </div>

@@ -8,6 +8,7 @@
 import { useState } from "react";
 import { PageHead } from "../../shared/PageHead";
 import { badge, money, Role, WorkOrder } from "../../shared/types";
+import { formatDue } from "../../shared/time";
 import type { VetDirectoryEntry } from "../../lib/vet-directory";
 
 function PoolRow({ order, isGapStaff, vets, onClaim, onAssign }: {
@@ -23,7 +24,7 @@ function PoolRow({ order, isGapStaff, vets, onClaim, onAssign }: {
     <td>{order.dogs.join(", ")}<small>{order.dogs.length} greyhound{order.dogs.length > 1 ? "s" : ""}</small></td>
     <td><span className={badge(order.priority)}>{order.priority}</span></td>
     <td>{order.service}</td>
-    <td className={order.due === "Overdue" ? "danger" : ""}>{order.due}</td>
+    <td className={order.due === "Overdue" ? "danger" : ""}>{formatDue(order.due)}</td>
     <td>{money(order.limit)}</td>
     <td>
       {isGapStaff
