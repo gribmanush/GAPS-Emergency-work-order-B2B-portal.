@@ -5,10 +5,11 @@
 "use client";
 
 import { useState } from "react";
-import { badge, isWorkOrderStageAtLeast, money, Role, WORK_ORDER_SEQUENCE, WorkOrder, WorkOrderStatus, workOrderStageIndex } from "../../shared/types";
+import { badge, Greyhound, isWorkOrderStageAtLeast, money, Role, WORK_ORDER_SEQUENCE, WorkOrder, WorkOrderStatus, workOrderStageIndex } from "../../shared/types";
+import { formatDue } from "../../shared/time";
 import { TabContent } from "./TabContent";
 
-export function OrderDetail({ order, role, back, transition, setModal }: { order: WorkOrder; role: Role; back: () => void; transition: (o: WorkOrder, s: WorkOrderStatus) => void; setModal: (m: string) => void }) {
+export function OrderDetail({ order, role, back, transition, setModal, greyhounds }: { order: WorkOrder; role: Role; back: () => void; transition: (o: WorkOrder, s: WorkOrderStatus) => void; setModal: (m: string) => void; greyhounds: Greyhound[] }) {
   const [tab, setTab] = useState("Overview");
   const isVet = role === "Veterinary Practice";
   const isGapStaff = role === "GAP Administrator" || role === "GAP Case Manager";
@@ -44,7 +45,7 @@ export function OrderDetail({ order, role, back, transition, setModal }: { order
           <div><dt>Assigned vet</dt><dd>{order.assignedVetName}</dd></div>
           <div><dt>Veterinary practice</dt><dd>{order.practice}</dd></div>
           <div><dt>Requested service</dt><dd>{order.service}</dd></div>
-          <div><dt>Response required</dt><dd>{order.due}</dd></div>
+          <div><dt>Response required</dt><dd>{formatDue(order.due)}</dd></div>
         </dl>
         <h3>Instructions</h3><p>{order.notes}</p>
       </section>
@@ -57,6 +58,6 @@ export function OrderDetail({ order, role, back, transition, setModal }: { order
         <h2>Workflow timeline</h2>
         <div className="timeline">{WORK_ORDER_SEQUENCE.map((stage, i) => <div className={i < currentStage ? "done" : i === currentStage ? "current" : ""} key={stage}><i>{i < currentStage ? "✓" : i + 1}</i><span><b>{stage}</b><small>{i < currentStage ? "Completed" : i === currentStage ? "In progress" : "Pending"}</small></span></div>)}</div>
       </section>
-    </div> : <TabContent tab={tab} order={order} />}
+    </div> : <TabContent tab={tab} order={order} greyhounds={greyhounds} />}
   </>;
 }

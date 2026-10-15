@@ -22,6 +22,7 @@ import { WorkOrderPool } from "./features/work-orders/WorkOrderPool";
 import { OrderDetail } from "./features/work-orders/OrderDetail";
 import { WorkOrderReviewModal } from "./features/work-orders/WorkOrderReviewModal";
 import { Invoices } from "./features/invoices/Invoices";
+import { InvoiceDetailModal } from "./features/invoices/InvoiceDetailModal";
 import { Greyhounds } from "./features/greyhounds/Greyhounds";
 import { Incidents } from "./features/misc/Incidents";
 import { Practices } from "./features/misc/Practices";
@@ -38,7 +39,7 @@ import { acceptWorkOrder, advanceWorkOrderStatus, claimWorkOrder, createWorkOrde
 import { createInvoice, reviewInvoice, subscribeInvoices } from "./lib/repositories/invoices";
 import { createIncident, subscribeIncidents } from "./lib/repositories/incidents";
 import { createGreyhound, subscribeGreyhounds } from "./lib/repositories/greyhounds";
-import { registerPractice, subscribePractices } from "./lib/repositories/practices";
+import { approvePractice, registerPractice, subscribePractices } from "./lib/repositories/practices";
 import { markAllNotificationsRead, markNotificationRead, subscribeNotifications } from "./lib/repositories/notifications";
 import { logSignIn, subscribeAuditLog } from "./lib/repositories/audit-log";
 import { saveMedicalRecord, subscribeMedicalRecords } from "./lib/repositories/medical-records";
@@ -67,6 +68,7 @@ export default function PortalApp() {
   const [search, setSearch] = useState("");
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [reviewOrderId, setReviewOrderId] = useState<string | null>(null);
+  const [viewInvoiceId, setViewInvoiceId] = useState<string | null>(null);
   const [modal, setModal] = useState<string | null>(null);
   const [toast, setToast] = useState("");
   const [collapsed, setCollapsed] = useState(false);
@@ -76,6 +78,12 @@ export default function PortalApp() {
     return onAuthStateChanged(auth, async (user) => {
       if (!user) { setSession(null); setScreen("login"); return; }
       const profile = await loadProfile(user.uid, user.email || "");
+      if (!profile) {
+        // No real Firestore profile doc for this account (e.g. one created
+        // directly in the Firebase console) — fail closed, never grant a
+        // fabricated session.
+        setSession(null); setScreen("account-not-set-up"); return;
+      }
       setSession(profile); setScreen("app"); setRoute("dashboard");
       // onAuthStateChanged can re-fire for the same signed-in user (e.g. a
       // token refresh, or React 18 Strict Mode's double effect invocation in
@@ -160,6 +168,10 @@ export default function PortalApp() {
   useEffect(() => { if (toast) { const t = setTimeout(() => setToast(""), 3200); return () => clearTimeout(t); } }, [toast]);
 
   const isReadOnly = session?.role === "GRNSW Auditor";
+  // The greyhound directory belongs to GAP staff (see canManageGreyhoundRecords
+  // in shared/types.ts) - a vet only ever edits medical records for greyhounds
+  // they're treating, never adds/overwrites directory entries.
+  const canManageGreyhoundDirectory = session?.role === "GAP Administrator" || session?.role === "GAP Case Manager";
   const actor = session ? { name: session.fullName, role: session.role } : null;
 
   async function login(e: FormEvent<HTMLFormElement>) {
@@ -177,9 +189,19 @@ export default function PortalApp() {
     const base = {
       email: String(fd.get("email")), fullName: `${fd.get("firstName")} ${fd.get("lastName")}`.trim(), phone: String(fd.get("phone")), role,
     };
-    const profileData = role === "Veterinary Practice"
-      ? { ...base, practice: String(fd.get("practice")), licenseNumber: String(fd.get("licenseNumber")), specialty: String(fd.get("specialty")) as UserProfile["specialty"], deaNumber: String(fd.get("deaNumber") || ""), emergencyContact: String(fd.get("emergencyContact")) }
-      : { ...base, employeeId: String(fd.get("employeeId")), branch: String(fd.get("branch")) };
+    let profileData;
+    if (role === "Veterinary Practice") {
+      // A disabled <select> (no approved practice available) omits its value
+      // entirely from FormData — guard here before String()-ing it into "null".
+      const rawPractice = fd.get("practice");
+      if (!rawPractice) {
+        setToast("Select your practice before creating an account — contact a GAP Administrator if none are approved yet.");
+        return;
+      }
+      profileData = { ...base, practice: String(rawPractice), licenseNumber: String(fd.get("licenseNumber")), specialty: String(fd.get("specialty")) as UserProfile["specialty"], deaNumber: String(fd.get("deaNumber") || ""), emergencyContact: String(fd.get("emergencyContact")) };
+    } else {
+      profileData = { ...base, employeeId: String(fd.get("employeeId")), branch: String(fd.get("branch")) };
+    }
     try { await signUp(profileData, password); }
     catch (err) { setToast(friendlyAuthError(err)); }
   }
@@ -208,10 +230,10 @@ export default function PortalApp() {
     catch (err) { setToast(err instanceof Error ? err.message : "Could not accept this work order."); }
     setReviewOrderId(null);
   }
-  async function rejectReviewOrder(order: WorkOrder) {
+  async function rejectReviewOrder(order: WorkOrder, reason?: string) {
     if (!session) return;
     try {
-      await rejectWorkOrder(order.id, { name: session.fullName, role: session.role, uid: session.uid });
+      await rejectWorkOrder(order.id, { name: session.fullName, role: session.role, uid: session.uid }, reason);
       await sendEmailNotification({ event: "work_order_rejected", recordId: order.id, practice: session.practice });
       setToast(`${order.id} declined`);
     }
@@ -266,7 +288,8 @@ export default function PortalApp() {
       }
       if (modal === "invoice") {
         const invoiceFields = parseInvoiceFields(data);
-        const invoiceId = await createInvoice(invoiceFields, actor);
+        if (!invoiceFields.fileName || !invoiceFields.fileData) { setToast("Attach a supporting invoice file before submitting."); return; }
+        const invoiceId = await createInvoice(invoiceFields, { name: session.fullName, role: session.role, uid: session.uid });
         await sendEmailNotification({ event: "invoice_submitted", recordId: invoiceId, practice: invoiceFields.practice });
       }
       if (modal === "incident") {
@@ -276,13 +299,17 @@ export default function PortalApp() {
           greyhoundIds: String(data.greyhoundIds || ""), reporterContact: String(data.reporterContact || ""),
         }, greyhounds, session.fullName), actor);
       }
-      if (modal === "greyhound") { await createGreyhound(createGreyhoundRecord(data), actor); }
+      if (modal === "greyhound") {
+        if (!canManageGreyhoundDirectory) { setToast("Only GAP staff can add greyhounds to the directory."); setModal(null); return; }
+        await createGreyhound(createGreyhoundRecord(data), actor);
+      }
       if (modal === "practice") {
         const name = String(data.tradingName || data.legalName);
         await registerPractice({
-          id: name, name, legalName: String(data.legalName), abn: String(data.abn).replace(/\s/g, ""),
-          email: String(data.email), phone: String(data.phone), approval: "Pending", operations: "Inactive",
-          coverage: String(data.coverage), supplierRef: "Not mapped", avgResponse: "—",
+          id: name, name, approval: "Pending", operations: "Inactive", coverage: String(data.coverage),
+          supplierRef: "Not mapped", avgResponse: "—",
+          legalName: String(data.legalName || ""), abn: String(data.abn || "").replace(/\s/g, ""),
+          email: String(data.email || ""), phone: String(data.phone || ""),
         }, actor);
       }
       setModal(null); setToast("Saved successfully");
@@ -299,6 +326,7 @@ export default function PortalApp() {
   const visibleNotices = notices.filter(n => isNoticeVisible(session, n));
   const unread = visibleNotices.filter(n => !n.read).length;
   const reviewOrder = reviewOrderId ? orders.find(o => o.id === reviewOrderId) || null : null;
+  const viewInvoice = viewInvoiceId ? invoices.find(i => i.id === viewInvoiceId) || null : null;
   const assignedDogNames = Array.from(new Set(worklistOrders.flatMap(o => o.dogs)));
   const canManageRecords = (petName: string) => canManageGreyhoundRecords(session, petName, assignedDogNames);
 
@@ -322,11 +350,12 @@ export default function PortalApp() {
         {route === "dashboard" && <Dashboard role={session.role} orders={worklistOrders} invoices={visibleInvoices} setRoute={setRoute} setModal={setModal} />}
         {route === "incidents" && <Incidents rows={incidents.map(incidentToRow)} readOnly={isReadOnly} setModal={setModal} />}
         {route === "work-orders" && !selectedOrder && <WorkOrders orders={worklistOrders} search={search} role={session.role} setSelected={o => setSelectedOrderId(o.id)} setModal={setModal} />}
-        {route === "work-orders" && selectedOrder && <OrderDetail order={selectedOrder} role={session.role} back={() => setSelectedOrderId(null)} transition={transition} setModal={setModal} />}
+        {route === "work-orders" && selectedOrder && <OrderDetail order={selectedOrder} role={session.role} back={() => setSelectedOrderId(null)} transition={transition} setModal={setModal} greyhounds={greyhounds} />}
         {route === "work-order-pool" && <WorkOrderPool orders={poolOrders} role={session.role} vets={vets} onClaim={claimPoolOrder} onAssign={assignPoolOrder} setModal={setModal} />}
         {route === "greyhounds" && <Greyhounds
           rows={greyhounds.map(greyhoundToRow)}
-          readOnly={isReadOnly}
+          search={search}
+          readOnly={isReadOnly || !canManageGreyhoundDirectory}
           setModal={setModal}
           userName={session.fullName}
           medicalRecords={medicalRecords}
@@ -335,8 +364,12 @@ export default function PortalApp() {
           onSaveMedicalRecord={record => saveMedicalRecord(record, { name: session.fullName, role: session.role })}
           onUploadDocument={fields => uploadGreyhoundDocument(fields, { name: session.fullName, role: session.role })}
         />}
-        {route === "practices" && <Practices rows={practices.map(practiceToRow)} role={session.role} setModal={setModal} />}
-        {route === "invoices" && <Invoices invoices={visibleInvoices} role={session.role} update={async (id, status) => {
+        {route === "practices" && <Practices practices={practices} role={session.role} setModal={setModal} onApprove={async id => {
+          if (!actor) return;
+          try { await approvePractice(id, actor); setToast(`${id} approved and activated`); }
+          catch (err) { setToast(err instanceof Error ? err.message : "Could not approve this practice."); }
+        }} />}
+        {route === "invoices" && <Invoices invoices={visibleInvoices} search={search} role={session.role} update={async (id, status) => {
           if (!actor) return;
           try {
             const invoice = visibleInvoices.find(item => item.id === id);
@@ -346,8 +379,8 @@ export default function PortalApp() {
             setToast(`${id}: ${status}`);
           }
           catch (err) { setToast(err instanceof Error ? err.message : "Could not update this invoice."); }
-        }} setModal={setModal} />}
-        {route === "notifications" && <Notifications notices={visibleNotices} onMarkRead={markNotificationRead} onMarkAll={() => markAllNotificationsRead(session, notices)} onOpenWorkOrder={setReviewOrderId} />}
+        }} setModal={setModal} onView={i => setViewInvoiceId(i.id)} />}
+        {route === "notifications" && <Notifications notices={visibleNotices} onMarkRead={markNotificationRead} onMarkAll={() => markAllNotificationsRead(session, notices)} onOpenWorkOrder={setReviewOrderId} onOpenInvoice={setViewInvoiceId} />}
         {route === "reports" && <Reports orders={orders} invoices={invoices} practices={practices} />}
         {route === "audit" && <AuditLog rows={audits} />}
         {route === "settings" && <Settings />}
@@ -362,9 +395,10 @@ export default function PortalApp() {
       vets={vets}
       onClose={() => setReviewOrderId(null)}
       onAccept={() => acceptReviewOrder(reviewOrder)}
-      onReject={() => rejectReviewOrder(reviewOrder)}
+      onReject={reason => rejectReviewOrder(reviewOrder, reason)}
       onReassign={vetUid => reassignReviewOrder(reviewOrder, vetUid)}
     />}
+    {viewInvoice && <InvoiceDetailModal invoice={viewInvoice} onClose={() => setViewInvoiceId(null)} />}
     {toast ? <div className={`toast ${toast.includes("incorrect") ? "error" : ""}`} role="status">{toast}</div> : null}
     <footer>Prototype demonstration. Not for operational or clinical use. Coupa integration is deferred for this build.</footer>
   </div>;

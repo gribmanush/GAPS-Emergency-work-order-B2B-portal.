@@ -2,10 +2,11 @@
 
 import { collection, doc, DocumentData, onSnapshot, orderBy, query, runTransaction, serverTimestamp, where } from "firebase/firestore";
 import { db } from "../firebase";
-import { DATA_COLLECTIONS, Invoice, UserProfile } from "../../shared/types";
+import { DATA_COLLECTIONS, Invoice, UserProfile, WorkOrder } from "../../shared/types";
 import { Actor, generateFriendlyId } from "./shared";
 
 const invoicesCol = () => collection(db, DATA_COLLECTIONS.invoices);
+const workOrdersCol = () => collection(db, DATA_COLLECTIONS.workOrders);
 const auditLogCol = () => collection(db, DATA_COLLECTIONS.auditLog);
 const notificationsCol = () => collection(db, DATA_COLLECTIONS.notifications);
 
@@ -31,16 +32,23 @@ export function subscribeInvoices(
   );
 }
 
-export async function createInvoice(fields: { workOrder: string; practice: string; amount: number }, actor: Actor): Promise<string> {
+export async function createInvoice(fields: { workOrder: string; practice: string; amount: number; fileName: string; fileData: string }, actor: Actor & { uid: string }): Promise<string> {
   const id = generateFriendlyId("INV");
   const invoiceRef = doc(invoicesCol(), id);
+  const workOrderRef = doc(workOrdersCol(), fields.workOrder);
   const auditRef = doc(auditLogCol());
   const noticeRef = doc(notificationsCol());
-  const invoice = { ...fields, status: "Submitted", version: 1, date: new Date().toLocaleDateString("en-AU") };
   await runTransaction(db, async transaction => {
+    const workOrderSnapshot = await transaction.get(workOrderRef);
+    if (!workOrderSnapshot.exists()) throw new Error("That work order no longer exists.");
+    // Over-limit invoices are still allowed through (additional spending just
+    // requires GAP approval) — we only flag them so reviewers can see at a glance.
+    const workOrderLimit = (workOrderSnapshot.data() as WorkOrder).limit;
+    const overLimit = typeof workOrderLimit === "number" && fields.amount > workOrderLimit;
+    const invoice = { ...fields, status: "Submitted", version: 1, date: new Date().toLocaleDateString("en-AU"), overLimit, submittedByUid: actor.uid };
     transaction.set(invoiceRef, { ...invoice, createdAt: serverTimestamp() });
     transaction.set(auditRef, auditEntry(actor, "Submitted invoice", id));
-    transaction.set(noticeRef, { text: `${id} was submitted for finance review`, time: "Just now", read: false, staffOnly: true, createdAt: serverTimestamp() });
+    transaction.set(noticeRef, { text: `${id} was submitted for finance review`, time: "Just now", read: false, staffOnly: true, invoiceId: id, createdAt: serverTimestamp() });
   });
   return id;
 }
@@ -55,6 +63,6 @@ export async function reviewInvoice(invoiceId: string, status: string, actor: Ac
     const invoice = normalise(invoiceId, snapshot.data());
     transaction.update(invoiceRef, { status });
     transaction.set(auditRef, auditEntry(actor, `${status} invoice`, invoiceId));
-    transaction.set(noticeRef, { text: `${invoiceId} is now ${status}`, time: "Just now", read: false, practice: invoice.practice, createdAt: serverTimestamp() });
+    transaction.set(noticeRef, { text: `${invoiceId} is now ${status}`, time: "Just now", read: false, practice: invoice.practice, recipientUid: invoice.submittedByUid, invoiceId, createdAt: serverTimestamp() });
   });
 }

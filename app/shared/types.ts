@@ -1,3 +1,5 @@
+import type { Timestamp } from "firebase/firestore";
+
 export type Role = "GAP Administrator" | "GAP Case Manager" | "Veterinary Practice" | "Finance Approver" | "GRNSW Auditor";
 
 export type VetSpecialty = "Small Animals" | "Equine" | "Livestock" | "Exotic" | "Surgery";
@@ -69,6 +71,9 @@ export type WorkOrder = {
   // the shared work order pool (visible to every vet) until someone claims it,
   // or GAP staff assigns it directly.
   isPooled?: boolean;
+  // Set by the repository layer (serverTimestamp()) at creation; absent/null
+  // for the brief window before the server assigns it.
+  createdAt?: Timestamp | null;
 };
 
 // A vet can only ever see/act on work orders currently assigned to their own
@@ -96,7 +101,17 @@ export function isVisibleToSession(session: Pick<UserProfile, "role" | "practice
   return Boolean(session.practice) && recordPractice === session.practice;
 }
 
-export type Invoice = { id: string; workOrder: string; practice: string; amount: number; status: string; version: number; date: string };
+export type Invoice = {
+  id: string; workOrder: string; practice: string; amount: number; status: string; version: number; date: string;
+  fileName: string; fileData: string; submittedByUid: string;
+  // Set by the repository layer (serverTimestamp()) at creation; absent/null
+  // for the brief window before the server assigns it.
+  createdAt?: Timestamp | null;
+  // Set when the invoice amount exceeds the linked work order's spending
+  // limit — still allowed through, just flagged for reviewers (additional
+  // spending requires GAP approval).
+  overLimit?: boolean;
+};
 
 export type Notice = {
   id: string; text: string; time: string; read: boolean;
@@ -104,6 +119,11 @@ export type Notice = {
   recipientUid?: string; // set for a notice meant for exactly one person (e.g. "you've been assigned this")
   staffOnly?: boolean; // set for a notice meant for any GAP staff role, never a vet
   workOrderId?: string; // lets clicking the notice open the related work order
+  invoiceId?: string; // lets clicking the notice open the related invoice
+  // Set by the repository layer (serverTimestamp()) at creation; absent/null
+  // for the brief window before the server assigns it. The real source for
+  // the displayed relative time, instead of the frozen `time` label above.
+  createdAt?: Timestamp | null;
 };
 
 // Priority: a personally-addressed notice beats everything else; a staff-only
@@ -133,10 +153,9 @@ export type Greyhound = {
 export type Practice = {
   id: string; // document id — the practice name, since that's the key used everywhere else
   name: string; approval: string; operations: string; coverage: string; supplierRef: string; avgResponse: string;
-  legalName?: string;
-  abn?: string;
-  email?: string;
-  phone?: string;
+  // Captured at registration time but previously discarded before saving —
+  // now persisted so the full practice record is actually stored and visible.
+  legalName?: string; abn?: string; email?: string; phone?: string;
 };
 
 export type MedicalRecord = {
@@ -165,7 +184,10 @@ export function canManageGreyhoundRecords(session: Pick<UserProfile, "role">, pe
 // storage layer underneath is fully typed Firestore documents.
 export const incidentToRow = (i: Incident): string[] => [i.id, i.occurredAt, i.type, i.location, String(i.greyhoundCount), i.priority, i.status];
 export const greyhoundToRow = (g: Greyhound): string[] => [g.id, g.petName, g.racingName, g.microchip, g.status, g.healthAlerts];
-export const practiceToRow = (p: Practice): string[] => [p.name, p.approval, p.operations, p.coverage, p.supplierRef, p.avgResponse];
+export const practiceToRow = (p: Practice): string[] => [
+  p.name, p.approval, p.operations, p.coverage, p.supplierRef, p.avgResponse,
+  p.abn || "—", [p.email, p.phone].filter(Boolean).join(" · ") || "—",
+];
 
 // One top-level Firestore collection per data domain — every operational
 // record is genuine, shared, cross-browser Firestore data, not local state.

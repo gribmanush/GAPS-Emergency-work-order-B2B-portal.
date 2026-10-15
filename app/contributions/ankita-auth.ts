@@ -42,7 +42,7 @@ export function friendlyAuthError(error: unknown): string {
   return (code && ERROR_MESSAGES[code]) || "Something went wrong. Please try again.";
 }
 
-async function loadProfile(uid: string, email: string): Promise<UserProfile> {
+async function loadProfile(uid: string, email: string): Promise<UserProfile | null> {
   // A signed-up account's profile lives in exactly one of the five role
   // collections — check all five (the uid tells us nothing about role on its own).
   const collections = Object.values(ROLE_COLLECTIONS);
@@ -54,10 +54,13 @@ async function loadProfile(uid: string, email: string): Promise<UserProfile> {
   const fallback = accounts[normalizedEmail];
   if (fallback) return { uid, email: normalizedEmail, fullName: fallback.name, phone: "", role: fallback.role };
 
-  return { uid, email: normalizedEmail, fullName: normalizedEmail, phone: "", role: "Veterinary Practice" };
+  // No real profile doc in any role collection, and no demo-account match:
+  // fail closed instead of fabricating a blank vet profile. The caller is
+  // responsible for refusing access when this is null.
+  return null;
 }
 
-export async function signIn(email: string, password: string, remember: boolean): Promise<UserProfile> {
+export async function signIn(email: string, password: string, remember: boolean): Promise<UserProfile | null> {
   await setPersistence(auth, remember ? browserLocalPersistence : browserSessionPersistence);
   const credential = await signInWithEmailAndPassword(auth, email.trim().toLowerCase(), password);
   return loadProfile(credential.user.uid, credential.user.email || email);

@@ -8,6 +8,7 @@
 
 import { useState } from "react";
 import { money, Role, WorkOrder } from "../../shared/types";
+import { formatDue } from "../../shared/time";
 import type { VetDirectoryEntry } from "../../lib/vet-directory";
 
 export function WorkOrderReviewModal({
@@ -19,10 +20,11 @@ export function WorkOrderReviewModal({
   vets: VetDirectoryEntry[];
   onClose: () => void;
   onAccept: () => void;
-  onReject: () => void;
+  onReject: (reason?: string) => void;
   onReassign: (vetUid: string) => void;
 }) {
   const [pickedVet, setPickedVet] = useState("");
+  const [rejectReason, setRejectReason] = useState("");
   const isAssignedVet = role === "Veterinary Practice" && order.assignedVetUid === sessionUid;
   const awaitingThisVetsDecision = isAssignedVet && !order.needsReassignment && order.status === "Work Order Created and Assigned";
   const isGapStaff = role === "GAP Administrator" || role === "GAP Case Manager";
@@ -42,10 +44,14 @@ export function WorkOrderReviewModal({
           <div><dt>Greyhounds</dt><dd>{order.dogs.join(", ")}</dd></div>
           <div><dt>Priority</dt><dd>{order.priority}</dd></div>
           <div><dt>Requested service</dt><dd>{order.service}</dd></div>
-          <div><dt>Response required</dt><dd>{order.due}</dd></div>
+          <div><dt>Response required</dt><dd>{formatDue(order.due)}</dd></div>
           <div><dt>Authorised limit</dt><dd>{money(order.limit)}</dd></div>
         </dl>
         <h3>Instructions</h3><p>{order.notes || "No additional instructions."}</p>
+
+        {awaitingThisVetsDecision ? <label className="full">Reason for declining (optional)
+          <textarea value={rejectReason} onChange={e => setRejectReason(e.target.value)} placeholder="Let GAP staff know why this work order can't be accepted…" rows={3} />
+        </label> : null}
 
         {needsReassignment ? <label className="full">Assign to a different vet
           <select value={pickedVet} onChange={e => setPickedVet(e.target.value)} disabled={!reassignCandidates.length}>
@@ -56,7 +62,7 @@ export function WorkOrderReviewModal({
       </div>
       <div className="modal-actions">
         {awaitingThisVetsDecision ? <>
-          <button type="button" className="danger-button" onClick={onReject}>Reject work</button>
+          <button type="button" className="danger-button" onClick={() => onReject(rejectReason.trim() || undefined)}>Reject work</button>
           <button type="button" className="primary" onClick={onAccept}>Accept work</button>
         </> : needsReassignment ? <>
           <button type="button" className="secondary" onClick={onClose}>Cancel</button>
