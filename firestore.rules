@@ -52,11 +52,19 @@ service cloud.firestore {
       allow create: if isGapStaff()
         && request.resource.data.status == 'Work Order Created and Assigned'
         && request.resource.data.assignedVetUid is string;
-      // A vet may also claim a still-unclaimed pool order themselves - narrowly
-      // scoped so they can only ever claim it for themselves, not rewrite it
-      // into any other shape.
+      // A vet acting on a work order already assigned to them (accept / reject /
+      // advance its own status) may only ever touch the exact fields those
+      // actions write - never the limit, assignment or anything else - and may
+      // never set it to either of the two staff-only terminal statuses, since
+      // only GAP staff may begin review or close a work order.
       allow update: if isGapStaff()
-        || (isVet() && resource.data.assignedVetUid == request.auth.uid)
+        || (isVet() && resource.data.assignedVetUid == request.auth.uid
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updated', 'needsReassignment'])
+            && request.resource.data.status != 'GAP Review'
+            && request.resource.data.status != 'Closed')
+        // A vet may also claim a still-unclaimed pool order themselves - narrowly
+        // scoped so they can only ever claim it for themselves, not rewrite it
+        // into any other shape.
         || (isVet() && resource.data.isPooled == true && resource.data.assignedVetUid == ''
             && request.resource.data.assignedVetUid == request.auth.uid
             && request.resource.data.isPooled == false
