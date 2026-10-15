@@ -185,9 +185,19 @@ export default function PortalApp() {
     const base = {
       email: String(fd.get("email")), fullName: `${fd.get("firstName")} ${fd.get("lastName")}`.trim(), phone: String(fd.get("phone")), role,
     };
-    const profileData = role === "Veterinary Practice"
-      ? { ...base, practice: String(fd.get("practice")), licenseNumber: String(fd.get("licenseNumber")), specialty: String(fd.get("specialty")) as UserProfile["specialty"], deaNumber: String(fd.get("deaNumber") || ""), emergencyContact: String(fd.get("emergencyContact")) }
-      : { ...base, employeeId: String(fd.get("employeeId")), branch: String(fd.get("branch")) };
+    let profileData;
+    if (role === "Veterinary Practice") {
+      // A disabled <select> (no approved practice available) omits its value
+      // entirely from FormData — guard here before String()-ing it into "null".
+      const rawPractice = fd.get("practice");
+      if (!rawPractice) {
+        setToast("Select your practice before creating an account — contact a GAP Administrator if none are approved yet.");
+        return;
+      }
+      profileData = { ...base, practice: String(rawPractice), licenseNumber: String(fd.get("licenseNumber")), specialty: String(fd.get("specialty")) as UserProfile["specialty"], deaNumber: String(fd.get("deaNumber") || ""), emergencyContact: String(fd.get("emergencyContact")) };
+    } else {
+      profileData = { ...base, employeeId: String(fd.get("employeeId")), branch: String(fd.get("branch")) };
+    }
     try { await signUp(profileData, password); }
     catch (err) { setToast(friendlyAuthError(err)); }
   }
