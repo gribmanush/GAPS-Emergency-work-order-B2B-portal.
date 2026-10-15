@@ -1,6 +1,6 @@
 "use client";
 
-import { collection, doc, DocumentData, getDoc, onSnapshot, orderBy, query, runTransaction, serverTimestamp, where } from "firebase/firestore";
+import { collection, doc, DocumentData, onSnapshot, orderBy, query, runTransaction, serverTimestamp, where } from "firebase/firestore";
 import { db } from "../firebase";
 import { DATA_COLLECTIONS, Invoice, UserProfile, WorkOrder } from "../../shared/types";
 import { Actor, generateFriendlyId } from "./shared";
@@ -35,15 +35,17 @@ export function subscribeInvoices(
 export async function createInvoice(fields: { workOrder: string; practice: string; amount: number; fileName: string; fileData: string }, actor: Actor): Promise<void> {
   const id = generateFriendlyId("INV");
   const invoiceRef = doc(invoicesCol(), id);
+  const workOrderRef = doc(workOrdersCol(), fields.workOrder);
   const auditRef = doc(auditLogCol());
   const noticeRef = doc(notificationsCol());
-  // Over-limit invoices are still allowed through (additional spending just
-  // requires GAP approval) — we only flag them so reviewers can see at a glance.
-  const workOrderSnapshot = await getDoc(doc(workOrdersCol(), fields.workOrder));
-  const workOrderLimit = workOrderSnapshot.exists() ? (workOrderSnapshot.data() as WorkOrder).limit : undefined;
-  const overLimit = typeof workOrderLimit === "number" && fields.amount > workOrderLimit;
-  const invoice = { ...fields, status: "Submitted", version: 1, date: new Date().toLocaleDateString("en-AU"), overLimit };
   await runTransaction(db, async transaction => {
+    const workOrderSnapshot = await transaction.get(workOrderRef);
+    if (!workOrderSnapshot.exists()) throw new Error("That work order no longer exists.");
+    // Over-limit invoices are still allowed through (additional spending just
+    // requires GAP approval) — we only flag them so reviewers can see at a glance.
+    const workOrderLimit = (workOrderSnapshot.data() as WorkOrder).limit;
+    const overLimit = typeof workOrderLimit === "number" && fields.amount > workOrderLimit;
+    const invoice = { ...fields, status: "Submitted", version: 1, date: new Date().toLocaleDateString("en-AU"), overLimit };
     transaction.set(invoiceRef, { ...invoice, createdAt: serverTimestamp() });
     transaction.set(auditRef, auditEntry(actor, "Submitted invoice", id));
     transaction.set(noticeRef, { text: `${id} was submitted for finance review`, time: "Just now", read: false, staffOnly: true, createdAt: serverTimestamp() });
