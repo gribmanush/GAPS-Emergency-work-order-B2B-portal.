@@ -29,29 +29,23 @@ For this prototype, set both recipient variables to `aanayv@gmail.com`. Remove `
 
 ## Local setup for every team member
 
-Do not ask another team member to send their Resend API key. Each developer should create a separate sending-only key so it can be revoked independently without disrupting anyone else.
+Team JAM uses Aanay's existing Resend configuration through the deployed Cloudflare Worker during local development. This is the default option because the API key stays encrypted in Cloudflare and is never copied to another computer.
 
-1. Create or sign in to a free Resend account using the inbox that will receive test messages.
-2. In **API Keys**, create a key named `GAP local - <your name>` with **Sending access** only. Copy it immediately; Resend only displays the complete token once.
-3. At the repository root, run:
+1. Run:
 
    ```bash
-   cp .dev.vars.example .dev.vars
+   pnpm check:email
+   pnpm dev
    ```
 
-4. Edit `.dev.vars`:
+2. Sign in and perform an action that sends an email. The local API route securely forwards the Firebase bearer token and event payload to the approved Worker. It never receives or exposes the Resend key.
+3. While safe test mode is enabled, all messages are delivered to Aanay's verified test inbox. Confirm delivery with Aanay or in the authorised Resend Logs view.
 
-   ```dotenv
-   RESEND_API_KEY=re_your_own_key
-   EMAIL_FROM="GAP Emergency Portal <onboarding@resend.dev>"
-   EMAIL_TEST_RECIPIENT=the_email_used_for_your_resend_account
-   GAP_NOTIFICATION_EMAIL=the_email_used_for_your_resend_account
-   FIREBASE_API_KEY=AIzaSyBveIAfSFi29HiKaF6zfYOoLPjKMdYtxWs
-   ```
+The shared endpoint accepts only authenticated Firebase users, uses fixed server-side templates, and routes messages to the configured test inbox. The proxy refuses any unapproved remote URL.
 
-5. Run `pnpm check:email`. It must report that all required values are present.
-6. Run `pnpm dev`, sign in, and perform an action that sends an email. With the Resend onboarding sender, delivery is intentionally restricted to the Resend account's own email address.
-7. Confirm the email appears in the inbox and in Resend **Logs**.
+### Optional separate Resend account
+
+To test with a different inbox, copy `.dev.vars.example` to `.dev.vars`, remove `EMAIL_REMOTE_ENDPOINT`, create a Resend key with **Sending access** only, and uncomment the five local variables. Never ask another team member to paste an API key into chat, Jira, email, or GitHub. Each separately created key can be revoked without disrupting other developers.
 
 The real `.dev.vars` file remains gitignored. Only `.dev.vars.example` is committed. If a key is ever exposed, revoke it in Resend and create a replacement.
 
@@ -59,9 +53,9 @@ The official Resend guidance for restricted API-key permissions is available at 
 
 ## Troubleshooting
 
-- Run `pnpm check:email` before debugging application code.
+- Run `pnpm check:email` before debugging application code. With no `.dev.vars`, it confirms the default shared endpoint. It also accepts the approved endpoint explicitly or a complete local Resend configuration.
 - Open `http://localhost:<port>/api/notifications/email` in the browser. It returns only non-secret configuration status and lists missing variable names; it never returns values.
-- A `503` response means local variables or a recipient are missing. The portal now displays this error instead of silently reporting success.
+- A `503` response means the approved shared endpoint is unavailable/invalid, or a separate local configuration is incomplete. The portal displays this error instead of silently reporting success.
 - A `401` response means the current Firebase login token could not be validated. Sign out, sign in again, and confirm `FIREBASE_API_KEY` matches `app/lib/firebase.ts`.
 - A `502` response means Resend rejected the request or could not be reached. Check that the key has Sending access and inspect Resend Logs.
 - `onboarding@resend.dev` can be used for safe account-owner testing. Sending to other recipients requires a verified sending domain and explicit project approval.

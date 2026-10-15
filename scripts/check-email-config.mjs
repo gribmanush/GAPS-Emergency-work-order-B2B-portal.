@@ -10,6 +10,7 @@ const required = [
 ];
 
 const placeholders = /replace|example\.com|xxxxxxxx|your_/i;
+const approvedSharedEndpoint = "https://gaps-emergency-work-order-b2b-portal.aanayv.workers.dev/api/notifications/email";
 const file = resolve(process.cwd(), ".dev.vars");
 const warnOnly = process.argv.includes("--warn");
 
@@ -28,9 +29,15 @@ function parseVars(contents) {
 }
 
 const values = existsSync(file) ? parseVars(readFileSync(file, "utf8")) : new Map();
+const sharedEndpoint = values.get("EMAIL_REMOTE_ENDPOINT");
 const missing = required.filter(name => !values.get(name) || placeholders.test(values.get(name)));
 
-if (missing.length === 0) {
+if (!existsSync(file) || sharedEndpoint === approvedSharedEndpoint) {
+  console.log("Email configuration check passed: using Team JAM's shared secured email service.");
+  process.exit(0);
+}
+
+if (missing.length === 0 && !sharedEndpoint) {
   console.log("Email configuration check passed: .dev.vars contains all required values.");
   process.exit(0);
 }
@@ -38,7 +45,9 @@ if (missing.length === 0) {
 console[warnOnly ? "warn" : "error"]([
   "Email notifications are not configured for local development.",
   "Run: cp .dev.vars.example .dev.vars",
-  "Then add your own Resend sending-only API key and your Resend account email.",
+  sharedEndpoint
+    ? "EMAIL_REMOTE_ENDPOINT is not the approved Team JAM endpoint."
+    : "Use the shared endpoint in the example, or add your own Resend sending-only key.",
   `Missing or placeholder values: ${missing.join(", ")}`,
   "See docs/EMAIL-NOTIFICATIONS.md for the safe setup and test steps.",
 ].join("\n"));

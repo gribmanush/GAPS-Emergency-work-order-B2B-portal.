@@ -44,16 +44,15 @@ The role switcher in the header is a prototype review tool, not production authe
 
 ## Running locally
 
-Install dependencies, configure local email, and start the development server:
+Install dependencies and start the development server:
 
 ```bash
 pnpm install
-cp .dev.vars.example .dev.vars
 pnpm check:email
 pnpm dev
 ```
 
-Replace the placeholders in `.dev.vars` with your own Resend sending-only API key and the email address used for your Resend account. The Firebase API key in the example is intentionally shared because Firebase web configuration is public; the Resend key must never be committed or sent to another team member. See [`docs/EMAIL-NOTIFICATIONS.md`](docs/EMAIL-NOTIFICATIONS.md) for the complete setup and local test procedure.
+Local development uses Team JAM's shared Cloudflare email endpoint by default. Your Resend key remains encrypted in Cloudflare and is never distributed to teammates or exposed in the browser. A developer may instead copy `.dev.vars.example` to `.dev.vars` and configure a separate sending-only Resend key locally. See [`docs/EMAIL-NOTIFICATIONS.md`](docs/EMAIL-NOTIFICATIONS.md) for both options.
 
 The `predev` check warns when email configuration is missing, while `pnpm check:email` fails until all required local values are ready. Open the local URL shown by the server. The validated production build uses the `build` script.
 

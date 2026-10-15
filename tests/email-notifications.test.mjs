@@ -44,6 +44,14 @@ test("exposes a non-secret configuration health check", async () => {
   assert.deepEqual(await response.json(), { configured: true, missing: [], testMode: true });
 });
 
+test("uses the approved shared service for a fresh localhost clone", async () => {
+  const response = await handleEmailNotification(new Request("http://localhost:3000/api/notifications/email"), {});
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), {
+    configured: true, missing: [], testMode: true, sharedService: true,
+  });
+});
+
 test("routes test-mode delivery to the verified Resend account", async () => {
   const originalFetch = globalThis.fetch;
   const calls = [];

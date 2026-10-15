@@ -13,9 +13,11 @@ export interface EmailEnv {
   EMAIL_TEST_RECIPIENT?: string;
   GAP_NOTIFICATION_EMAIL?: string;
   FIREBASE_API_KEY?: string;
+  EMAIL_REMOTE_ENDPOINT?: string;
 }
 
 export const REQUIRED_EMAIL_ENV = ["RESEND_API_KEY", "EMAIL_FROM", "FIREBASE_API_KEY"] as const;
+const TEAM_JAM_EMAIL_ENDPOINT = "https://gaps-emergency-work-order-b2b-portal.aanayv.workers.dev/api/notifications/email";
 
 type EmailRequest = {
   event: EmailEvent;
@@ -66,6 +68,33 @@ export function emailConfigurationStatus(env: EmailEnv) {
   };
 }
 
+function isLocalRequest(request: Request) {
+  const hostname = new URL(request.url).hostname;
+  return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "[::1]";
+}
+
+async function proxyToSharedEmailService(request: Request, endpoint: string) {
+  if (endpoint !== TEAM_JAM_EMAIL_ENDPOINT) {
+    return json({ error: "The configured shared email endpoint is not approved" }, 503);
+  }
+  if (request.method === "GET") {
+    return json({ configured: true, missing: [], testMode: true, sharedService: true });
+  }
+  const headers = new Headers({ "content-type": "application/json" });
+  const authorization = request.headers.get("authorization");
+  if (authorization) headers.set("authorization", authorization);
+
+  try {
+    return await fetch(endpoint, {
+      method: request.method,
+      headers,
+      body: request.method === "POST" ? await request.text() : undefined,
+    });
+  } catch {
+    return json({ error: "The shared email service could not be reached" }, 502);
+  }
+}
+
 function messageFor(input: EmailRequest) {
   const id = clean(input.recordId, 80);
   const status = clean(input.status, 80);
@@ -84,6 +113,9 @@ function messageFor(input: EmailRequest) {
 
 export async function handleEmailNotification(request: Request, env: EmailEnv): Promise<Response> {
   const configuration = emailConfigurationStatus(env);
+  const remoteEndpoint = env.EMAIL_REMOTE_ENDPOINT?.trim()
+    || (!configuration.configured && isLocalRequest(request) ? TEAM_JAM_EMAIL_ENDPOINT : undefined);
+  if (remoteEndpoint) return proxyToSharedEmailService(request, remoteEndpoint);
   if (request.method === "GET") return json(configuration, configuration.configured ? 200 : 503);
   if (request.method !== "POST") return json({ error: "Method not allowed" }, 405);
   if (!configuration.configured) {
