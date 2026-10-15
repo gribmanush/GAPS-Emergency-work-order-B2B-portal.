@@ -44,7 +44,18 @@ The role switcher in the header is a prototype review tool, not production authe
 
 ## Running locally
 
-Install dependencies and start the development server using the package scripts. Open the local URL shown by the server. The validated production build uses the `build` script.
+Install dependencies, configure local email, and start the development server:
+
+```bash
+pnpm install
+cp .dev.vars.example .dev.vars
+pnpm check:email
+pnpm dev
+```
+
+Replace the placeholders in `.dev.vars` with your own Resend sending-only API key and the email address used for your Resend account. The Firebase API key in the example is intentionally shared because Firebase web configuration is public; the Resend key must never be committed or sent to another team member. See [`docs/EMAIL-NOTIFICATIONS.md`](docs/EMAIL-NOTIFICATIONS.md) for the complete setup and local test procedure.
+
+The `predev` check warns when email configuration is missing, while `pnpm check:email` fails until all required local values are ready. Open the local URL shown by the server. The validated production build uses the `build` script.
 
 ## Prototype limitations
 

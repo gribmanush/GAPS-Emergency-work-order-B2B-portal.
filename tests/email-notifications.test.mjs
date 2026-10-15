@@ -27,6 +27,23 @@ test("rejects unauthenticated email requests", async () => {
   } finally { globalThis.fetch = originalFetch; }
 });
 
+test("reports missing local email configuration without exposing values", async () => {
+  const response = await handleEmailNotification(request({ event: "invoice_submitted", recordId: "INV-1" }), {
+    FIREBASE_API_KEY: "firebase-key",
+  });
+  assert.equal(response.status, 503);
+  const body = await response.json();
+  assert.equal(body.error, "Email service is not configured for this environment");
+  assert.deepEqual(body.missing, ["RESEND_API_KEY", "EMAIL_FROM", "EMAIL_TEST_RECIPIENT or GAP_NOTIFICATION_EMAIL"]);
+  assert.doesNotMatch(JSON.stringify(body), /firebase-key/);
+});
+
+test("exposes a non-secret configuration health check", async () => {
+  const response = await handleEmailNotification(new Request("https://portal.example/api/notifications/email"), env);
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), { configured: true, missing: [], testMode: true });
+});
+
 test("routes test-mode delivery to the verified Resend account", async () => {
   const originalFetch = globalThis.fetch;
   const calls = [];
@@ -61,5 +78,18 @@ test("uses the configured GAP inbox for staff-facing events", async () => {
     assert.equal(response.status, 200);
     const resendBody = JSON.parse(calls[1].options.body);
     assert.deepEqual(resendBody.to, ["aanayv@gmail.com"]);
+  } finally { globalThis.fetch = originalFetch; }
+});
+
+test("returns a controlled error when Resend cannot be reached", async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async url => {
+    if (String(url).includes("accounts:lookup")) return Response.json({ users: [{ localId: "uid-1" }] });
+    throw new Error("network unavailable");
+  };
+  try {
+    const response = await handleEmailNotification(request({ event: "invoice_submitted", recordId: "INV-9" }), env);
+    assert.equal(response.status, 502);
+    assert.deepEqual(await response.json(), { error: "Email provider could not be reached" });
   } finally { globalThis.fetch = originalFetch; }
 });
