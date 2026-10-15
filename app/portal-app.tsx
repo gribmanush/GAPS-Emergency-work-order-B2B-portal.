@@ -264,7 +264,7 @@ export default function PortalApp() {
       if (modal === "invoice") {
         const invoiceFields = parseInvoiceFields(data);
         if (!invoiceFields.fileName || !invoiceFields.fileData) { setToast("Attach a supporting invoice file before submitting."); return; }
-        await createInvoice(invoiceFields, actor);
+        await createInvoice(invoiceFields, { name: session.fullName, role: session.role, uid: session.uid });
       }
       if (modal === "incident") {
         await createIncident({

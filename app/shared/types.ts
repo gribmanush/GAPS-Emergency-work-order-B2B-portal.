@@ -103,7 +103,7 @@ export function isVisibleToSession(session: Pick<UserProfile, "role" | "practice
 
 export type Invoice = {
   id: string; workOrder: string; practice: string; amount: number; status: string; version: number; date: string;
-  fileName: string; fileData: string;
+  fileName: string; fileData: string; submittedByUid: string;
   // Set by the repository layer (serverTimestamp()) at creation; absent/null
   // for the brief window before the server assigns it.
   createdAt?: Timestamp | null;

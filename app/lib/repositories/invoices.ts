@@ -32,7 +32,7 @@ export function subscribeInvoices(
   );
 }
 
-export async function createInvoice(fields: { workOrder: string; practice: string; amount: number; fileName: string; fileData: string }, actor: Actor): Promise<void> {
+export async function createInvoice(fields: { workOrder: string; practice: string; amount: number; fileName: string; fileData: string }, actor: Actor & { uid: string }): Promise<void> {
   const id = generateFriendlyId("INV");
   const invoiceRef = doc(invoicesCol(), id);
   const workOrderRef = doc(workOrdersCol(), fields.workOrder);
@@ -45,7 +45,7 @@ export async function createInvoice(fields: { workOrder: string; practice: strin
     // requires GAP approval) — we only flag them so reviewers can see at a glance.
     const workOrderLimit = (workOrderSnapshot.data() as WorkOrder).limit;
     const overLimit = typeof workOrderLimit === "number" && fields.amount > workOrderLimit;
-    const invoice = { ...fields, status: "Submitted", version: 1, date: new Date().toLocaleDateString("en-AU"), overLimit };
+    const invoice = { ...fields, status: "Submitted", version: 1, date: new Date().toLocaleDateString("en-AU"), overLimit, submittedByUid: actor.uid };
     transaction.set(invoiceRef, { ...invoice, createdAt: serverTimestamp() });
     transaction.set(auditRef, auditEntry(actor, "Submitted invoice", id));
     transaction.set(noticeRef, { text: `${id} was submitted for finance review`, time: "Just now", read: false, staffOnly: true, createdAt: serverTimestamp() });
@@ -71,6 +71,6 @@ export async function reviewInvoice(invoiceId: string, status: string, actor: Ac
     const invoice = normalise(invoiceId, snapshot.data());
     transaction.update(invoiceRef, { status });
     transaction.set(auditRef, auditEntry(actor, `${status} invoice`, invoiceId));
-    transaction.set(noticeRef, { text: `${invoiceId} is now ${status}`, time: "Just now", read: false, practice: invoice.practice, createdAt: serverTimestamp() });
+    transaction.set(noticeRef, { text: `${invoiceId} is now ${status}`, time: "Just now", read: false, practice: invoice.practice, recipientUid: invoice.submittedByUid, createdAt: serverTimestamp() });
   });
 }
