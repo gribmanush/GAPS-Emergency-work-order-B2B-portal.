@@ -69,7 +69,7 @@ service cloud.firestore {
     match /invoices/{invoiceId} {
       allow read: if isGapStaff() || (isVet() && resource.data.practice == myPractice());
       allow create: if isVet() && request.resource.data.practice == myPractice() && request.resource.data.status == 'Submitted';
-      allow update: if isGapStaff();
+      allow update: if isFinanceApprover() || isGapAdmin();
       allow delete: if false;
     }
 
