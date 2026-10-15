@@ -1,6 +1,15 @@
-# Copy to .dev.vars for local testing. Never commit the real file or API key.
-RESEND_API_KEY=re_xxxxxxxxx
-EMAIL_FROM=GAP Emergency Portal <onboarding@resend.dev>
-EMAIL_TEST_RECIPIENT=verified-resend-account@example.com
-GAP_NOTIFICATION_EMAIL=gap-notifications@example.com
-FIREBASE_API_KEY=your_firebase_web_api_key
+# Recommended Team JAM setup: use the shared deployed email service. The
+# Resend key stays encrypted in Cloudflare and is never copied to a laptop.
+EMAIL_REMOTE_ENDPOINT=https://gaps-emergency-work-order-b2b-portal.aanayv.workers.dev/api/notifications/email
+
+# Alternative: comment EMAIL_REMOTE_ENDPOINT and configure a separate Resend
+# account locally. Never commit .dev.vars or share a real API key in GitHub.
+# RESEND_API_KEY=re_replace_with_your_own_sending_key
+# EMAIL_FROM="GAP Emergency Portal <onboarding@resend.dev>"
+# EMAIL_TEST_RECIPIENT=your_resend_account_email@example.com
+# GAP_NOTIFICATION_EMAIL=your_resend_account_email@example.com
+
+# Firebase web API keys identify the Firebase project and are not secret.
+# This value matches app/lib/firebase.ts so local token validation uses the
+# same Firebase project as local authentication.
+# FIREBASE_API_KEY=AIzaSyBveIAfSFi29HiKaF6zfYOoLPjKMdYtxWs

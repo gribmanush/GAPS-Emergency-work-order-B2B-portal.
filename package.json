@@ -6,11 +6,13 @@
     "node": ">=22.13.0"
   },
   "scripts": {
+    "predev": "node scripts/check-email-config.mjs --warn",
     "dev": "vinext dev",
     "build": "vinext build",
     "start": "vinext start",
     "test": "node --experimental-strip-types --test tests/*.test.mjs",
     "test:aanay": "node --experimental-strip-types --test tests/aanay-sprint5-workflows.test.mjs",
+    "check:email": "node scripts/check-email-config.mjs",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
     "db:generate": "drizzle-kit generate"
   },

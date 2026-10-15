@@ -27,6 +27,39 @@ Set these in the Cloudflare project settings for both Preview and Production:
 
 For this prototype, set both recipient variables to `aanayv@gmail.com`. Remove `EMAIL_TEST_RECIPIENT` only after a client-approved domain is verified in Resend and real-recipient testing is authorised.
 
+## Local setup for every team member
+
+Team JAM uses Aanay's existing Resend configuration through the deployed Cloudflare Worker during local development. This is the default option because the API key stays encrypted in Cloudflare and is never copied to another computer.
+
+1. Run:
+
+   ```bash
+   pnpm check:email
+   pnpm dev
+   ```
+
+2. Sign in and perform an action that sends an email. The local API route securely forwards the Firebase bearer token and event payload to the approved Worker. It never receives or exposes the Resend key.
+3. While safe test mode is enabled, all messages are delivered to Aanay's verified test inbox. Confirm delivery with Aanay or in the authorised Resend Logs view.
+
+The shared endpoint accepts only authenticated Firebase users, uses fixed server-side templates, and routes messages to the configured test inbox. The proxy refuses any unapproved remote URL.
+
+### Optional separate Resend account
+
+To test with a different inbox, copy `.dev.vars.example` to `.dev.vars`, remove `EMAIL_REMOTE_ENDPOINT`, create a Resend key with **Sending access** only, and uncomment the five local variables. Never ask another team member to paste an API key into chat, Jira, email, or GitHub. Each separately created key can be revoked without disrupting other developers.
+
+The real `.dev.vars` file remains gitignored. Only `.dev.vars.example` is committed. If a key is ever exposed, revoke it in Resend and create a replacement.
+
+The official Resend guidance for restricted API-key permissions is available at <https://resend.com/changelog/new-api-key-permissions>.
+
+## Troubleshooting
+
+- Run `pnpm check:email` before debugging application code. With no `.dev.vars`, it confirms the default shared endpoint. It also accepts the approved endpoint explicitly or a complete local Resend configuration.
+- Open `http://localhost:<port>/api/notifications/email` in the browser. It returns only non-secret configuration status and lists missing variable names; it never returns values.
+- A `503` response means the approved shared endpoint is unavailable/invalid, or a separate local configuration is incomplete. The portal displays this error instead of silently reporting success.
+- A `401` response means the current Firebase login token could not be validated. Sign out, sign in again, and confirm `FIREBASE_API_KEY` matches `app/lib/firebase.ts`.
+- A `502` response means Resend rejected the request or could not be reached. Check that the key has Sending access and inspect Resend Logs.
+- `onboarding@resend.dev` can be used for safe account-owner testing. Sending to other recipients requires a verified sending domain and explicit project approval.
+
 ## Security controls
 
 1. The browser sends a current Firebase ID token with each request.
@@ -38,4 +71,4 @@ For this prototype, set both recipient variables to `aanayv@gmail.com`. Remove `
 
 ## Verification
 
-Run `npm test`, `npm run lint`, and `npm run build`. Then sign in to the deployed portal and perform one supported workflow. Confirm the Worker returns HTTP 200, the message arrives at the test inbox, and Resend shows the delivery event in its Logs page.
+Run `pnpm check:email`, `pnpm test`, `pnpm lint`, and `pnpm build`. Then sign in to the portal and perform one supported workflow. Confirm the Worker returns HTTP 200, the portal reports successful delivery, the message arrives at the test inbox, and Resend shows the delivery event in its Logs page.

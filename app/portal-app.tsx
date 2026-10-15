@@ -45,7 +45,7 @@ import { logSignIn, subscribeAuditLog } from "./lib/repositories/audit-log";
 import { saveMedicalRecord, subscribeMedicalRecords } from "./lib/repositories/medical-records";
 import { subscribeGreyhoundDocuments, uploadGreyhoundDocument } from "./lib/repositories/greyhound-documents";
 import { buildEmergencyCase } from "./contributions/aanay-sprint5";
-import { sendEmailNotification } from "./lib/email-notifications";
+import { sendEmailNotification, type EmailNotification } from "./lib/email-notifications";
 
 function canViewTab(role: Role, tabId: string) {
   return !restricted[tabId] || restricted[tabId].includes(role);
@@ -211,12 +211,19 @@ export default function PortalApp() {
     catch (err) { setToast(friendlyAuthError(err)); }
   }
 
+  async function emailWarning(input: EmailNotification): Promise<string> {
+    const result = await sendEmailNotification(input);
+    return result.delivered ? "" : ` — saved, but email was not sent: ${result.message}`;
+  }
+
   async function transition(order: WorkOrder, status: WorkOrderStatus) {
     if (!session) return;
     try {
       await advanceWorkOrderStatus(order.id, status, { name: session.fullName, role: session.role, uid: session.uid });
-      if (session.role === "Veterinary Practice") await sendEmailNotification({ event: "work_order_status_updated", recordId: order.id, status, practice: session.practice });
-      setToast(`${order.id} updated`);
+      const warning = session.role === "Veterinary Practice"
+        ? await emailWarning({ event: "work_order_status_updated", recordId: order.id, status, practice: session.practice })
+        : "";
+      setToast(`${order.id} updated${warning}`);
     }
     catch (err) { setToast(err instanceof Error ? err.message : "That status change isn't allowed."); }
   }
@@ -224,8 +231,8 @@ export default function PortalApp() {
     if (!session) return;
     try {
       await acceptWorkOrder(order.id, { name: session.fullName, role: session.role, uid: session.uid });
-      await sendEmailNotification({ event: "work_order_accepted", recordId: order.id, practice: session.practice });
-      setToast(`${order.id} accepted`);
+      const warning = await emailWarning({ event: "work_order_accepted", recordId: order.id, practice: session.practice });
+      setToast(`${order.id} accepted${warning}`);
     }
     catch (err) { setToast(err instanceof Error ? err.message : "Could not accept this work order."); }
     setReviewOrderId(null);
@@ -234,8 +241,8 @@ export default function PortalApp() {
     if (!session) return;
     try {
       await rejectWorkOrder(order.id, { name: session.fullName, role: session.role, uid: session.uid }, reason);
-      await sendEmailNotification({ event: "work_order_rejected", recordId: order.id, practice: session.practice });
-      setToast(`${order.id} declined`);
+      const warning = await emailWarning({ event: "work_order_rejected", recordId: order.id, practice: session.practice });
+      setToast(`${order.id} declined${warning}`);
     }
     catch (err) { setToast(err instanceof Error ? err.message : "Could not decline this work order."); }
     setReviewOrderId(null);
@@ -246,8 +253,8 @@ export default function PortalApp() {
     if (!vet) { setToast("Select a vet to reassign to."); return; }
     try {
       await reassignWorkOrder(order.id, vet, { name: session.fullName, role: session.role });
-      await sendEmailNotification({ event: "work_order_reassigned", recordId: order.id, recipientEmail: vet.email, recipientName: vet.fullName, practice: vet.practice });
-      setToast(`${order.id} reassigned to ${vet.fullName}`);
+      const warning = await emailWarning({ event: "work_order_reassigned", recordId: order.id, recipientEmail: vet.email, recipientName: vet.fullName, practice: vet.practice });
+      setToast(`${order.id} reassigned to ${vet.fullName}${warning}`);
     }
     catch (err) { setToast(err instanceof Error ? err.message : "Could not reassign this work order."); }
     setReviewOrderId(null);
@@ -265,8 +272,8 @@ export default function PortalApp() {
     if (!vet) { setToast("Select a vet to assign to."); return; }
     try {
       await reassignWorkOrder(orderId, vet, { name: session.fullName, role: session.role });
-      await sendEmailNotification({ event: "work_order_assigned", recordId: orderId, recipientEmail: vet.email, recipientName: vet.fullName, practice: vet.practice });
-      setToast(`${orderId} assigned to ${vet.fullName}`);
+      const warning = await emailWarning({ event: "work_order_assigned", recordId: orderId, recipientEmail: vet.email, recipientName: vet.fullName, practice: vet.practice });
+      setToast(`${orderId} assigned to ${vet.fullName}${warning}`);
     }
     catch (err) { setToast(err instanceof Error ? err.message : "Could not assign this work order."); }
   }
@@ -274,6 +281,7 @@ export default function PortalApp() {
   async function handleModalSubmit(data: Record<string, FormDataEntryValue>) {
     if (!session || !actor) return;
     try {
+      let warning = "";
       if (modal === "work-order") {
         if (session.role === "Veterinary Practice") { setToast("Vets cannot create work orders."); setModal(null); return; }
         const rawVetId = String(data.assignedVetUid);
@@ -283,14 +291,14 @@ export default function PortalApp() {
           const vet = vets.find(v => v.uid === rawVetId);
           if (!vet) { setToast("Select a vet or add this work order to the pool."); return; }
           const workOrderId = await createWorkOrder(parseWorkOrderFields(data), vet, actor);
-          await sendEmailNotification({ event: "work_order_assigned", recordId: workOrderId, recipientEmail: vet.email, recipientName: vet.fullName, practice: vet.practice });
+          warning = await emailWarning({ event: "work_order_assigned", recordId: workOrderId, recipientEmail: vet.email, recipientName: vet.fullName, practice: vet.practice });
         }
       }
       if (modal === "invoice") {
         const invoiceFields = parseInvoiceFields(data);
         if (!invoiceFields.fileName || !invoiceFields.fileData) { setToast("Attach a supporting invoice file before submitting."); return; }
         const invoiceId = await createInvoice(invoiceFields, { name: session.fullName, role: session.role, uid: session.uid });
-        await sendEmailNotification({ event: "invoice_submitted", recordId: invoiceId, practice: invoiceFields.practice });
+        warning = await emailWarning({ event: "invoice_submitted", recordId: invoiceId, practice: invoiceFields.practice });
       }
       if (modal === "incident") {
         await createIncident(buildEmergencyCase({
@@ -312,7 +320,7 @@ export default function PortalApp() {
           email: String(data.email || ""), phone: String(data.phone || ""),
         }, actor);
       }
-      setModal(null); setToast("Saved successfully");
+      setModal(null); setToast(`Saved successfully${warning}`);
     } catch (err) { setToast(err instanceof Error ? err.message : "Could not save this record."); }
   }
 
@@ -375,8 +383,8 @@ export default function PortalApp() {
             const invoice = visibleInvoices.find(item => item.id === id);
             await reviewInvoice(id, status, actor);
             const practice = practices.find(item => item.name === invoice?.practice || item.id === invoice?.practice);
-            await sendEmailNotification({ event: "invoice_reviewed", recordId: id, status, practice: invoice?.practice, recipientEmail: practice?.email, recipientName: invoice?.practice });
-            setToast(`${id}: ${status}`);
+            const warning = await emailWarning({ event: "invoice_reviewed", recordId: id, status, practice: invoice?.practice, recipientEmail: practice?.email, recipientName: invoice?.practice });
+            setToast(`${id}: ${status}${warning}`);
           }
           catch (err) { setToast(err instanceof Error ? err.message : "Could not update this invoice."); }
         }} setModal={setModal} onView={i => setViewInvoiceId(i.id)} />}
@@ -399,7 +407,7 @@ export default function PortalApp() {
       onReassign={vetUid => reassignReviewOrder(reviewOrder, vetUid)}
     />}
     {viewInvoice && <InvoiceDetailModal invoice={viewInvoice} onClose={() => setViewInvoiceId(null)} />}
-    {toast ? <div className={`toast ${toast.includes("incorrect") ? "error" : ""}`} role="status">{toast}</div> : null}
+    {toast ? <div className={`toast ${toast.includes("incorrect") || toast.includes("not sent") || toast.includes("failed") ? "error" : ""}`} role="status">{toast}</div> : null}
     <footer>Prototype demonstration. Not for operational or clinical use. Coupa integration is deferred for this build.</footer>
   </div>;
 }

@@ -44,7 +44,17 @@ The role switcher in the header is a prototype review tool, not production authe
 
 ## Running locally
 
-Install dependencies and start the development server using the package scripts. Open the local URL shown by the server. The validated production build uses the `build` script.
+Install dependencies and start the development server:
+
+```bash
+pnpm install
+pnpm check:email
+pnpm dev
+```
+
+Local development uses Team JAM's shared Cloudflare email endpoint by default. Your Resend key remains encrypted in Cloudflare and is never distributed to teammates or exposed in the browser. A developer may instead copy `.dev.vars.example` to `.dev.vars` and configure a separate sending-only Resend key locally. See [`docs/EMAIL-NOTIFICATIONS.md`](docs/EMAIL-NOTIFICATIONS.md) for both options.
+
+The `predev` check warns when email configuration is missing, while `pnpm check:email` fails until all required local values are ready. Open the local URL shown by the server. The validated production build uses the `build` script.
 
 ## Prototype limitations
 
