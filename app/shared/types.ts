@@ -106,6 +106,10 @@ export type Invoice = {
   // Set by the repository layer (serverTimestamp()) at creation; absent/null
   // for the brief window before the server assigns it.
   createdAt?: Timestamp | null;
+  // Set when the invoice amount exceeds the linked work order's spending
+  // limit — still allowed through, just flagged for reviewers (additional
+  // spending requires GAP approval).
+  overLimit?: boolean;
 };
 
 export type Notice = {

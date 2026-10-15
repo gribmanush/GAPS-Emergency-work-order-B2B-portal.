@@ -1,11 +1,12 @@
 "use client";
 
-import { collection, doc, DocumentData, onSnapshot, orderBy, query, runTransaction, serverTimestamp, where } from "firebase/firestore";
+import { collection, doc, DocumentData, getDoc, onSnapshot, orderBy, query, runTransaction, serverTimestamp, where } from "firebase/firestore";
 import { db } from "../firebase";
-import { DATA_COLLECTIONS, Invoice, UserProfile } from "../../shared/types";
+import { DATA_COLLECTIONS, Invoice, UserProfile, WorkOrder } from "../../shared/types";
 import { Actor, generateFriendlyId } from "./shared";
 
 const invoicesCol = () => collection(db, DATA_COLLECTIONS.invoices);
+const workOrdersCol = () => collection(db, DATA_COLLECTIONS.workOrders);
 const auditLogCol = () => collection(db, DATA_COLLECTIONS.auditLog);
 const notificationsCol = () => collection(db, DATA_COLLECTIONS.notifications);
 
@@ -36,7 +37,12 @@ export async function createInvoice(fields: { workOrder: string; practice: strin
   const invoiceRef = doc(invoicesCol(), id);
   const auditRef = doc(auditLogCol());
   const noticeRef = doc(notificationsCol());
-  const invoice = { ...fields, status: "Submitted", version: 1, date: new Date().toLocaleDateString("en-AU") };
+  // Over-limit invoices are still allowed through (additional spending just
+  // requires GAP approval) — we only flag them so reviewers can see at a glance.
+  const workOrderSnapshot = await getDoc(doc(workOrdersCol(), fields.workOrder));
+  const workOrderLimit = workOrderSnapshot.exists() ? (workOrderSnapshot.data() as WorkOrder).limit : undefined;
+  const overLimit = typeof workOrderLimit === "number" && fields.amount > workOrderLimit;
+  const invoice = { ...fields, status: "Submitted", version: 1, date: new Date().toLocaleDateString("en-AU"), overLimit };
   await runTransaction(db, async transaction => {
     transaction.set(invoiceRef, { ...invoice, createdAt: serverTimestamp() });
     transaction.set(auditRef, auditEntry(actor, "Submitted invoice", id));
