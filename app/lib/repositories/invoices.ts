@@ -32,7 +32,7 @@ export function subscribeInvoices(
   );
 }
 
-export async function createInvoice(fields: { workOrder: string; practice: string; amount: number }, actor: Actor): Promise<void> {
+export async function createInvoice(fields: { workOrder: string; practice: string; amount: number; fileName: string; fileData: string }, actor: Actor): Promise<void> {
   const id = generateFriendlyId("INV");
   const invoiceRef = doc(invoicesCol(), id);
   const auditRef = doc(auditLogCol());

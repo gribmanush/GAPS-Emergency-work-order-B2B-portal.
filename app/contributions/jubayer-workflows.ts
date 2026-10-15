@@ -26,5 +26,7 @@ export function parseInvoiceFields(data: Record<string, FormDataEntryValue>) {
     workOrder: String(data.workOrder),
     practice: String(data.practice || "Unassigned"),
     amount: Number(data.amount),
+    fileName: String(data.fileName || ""),
+    fileData: String(data.fileData || ""),
   };
 }

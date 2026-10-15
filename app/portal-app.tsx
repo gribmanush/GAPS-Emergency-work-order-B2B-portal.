@@ -251,7 +251,11 @@ export default function PortalApp() {
           await createWorkOrder(parseWorkOrderFields(data), vet, actor);
         }
       }
-      if (modal === "invoice") { await createInvoice(parseInvoiceFields(data), actor); }
+      if (modal === "invoice") {
+        const invoiceFields = parseInvoiceFields(data);
+        if (!invoiceFields.fileName || !invoiceFields.fileData) { setToast("Attach a supporting invoice file before submitting."); return; }
+        await createInvoice(invoiceFields, actor);
+      }
       if (modal === "incident") {
         await createIncident({
           occurredAt: new Date().toLocaleString("en-AU"),
