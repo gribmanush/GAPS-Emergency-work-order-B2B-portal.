@@ -146,7 +146,7 @@ export async function acceptWorkOrder(orderId: string, actor: Actor & { uid: str
   });
 }
 
-export async function rejectWorkOrder(orderId: string, actor: Actor & { uid: string }): Promise<void> {
+export async function rejectWorkOrder(orderId: string, actor: Actor & { uid: string }, reason?: string): Promise<void> {
   const orderRef = doc(workOrdersCol(), orderId);
   const auditRef = doc(auditLogCol());
   const noticeRef = doc(notificationsCol());
@@ -158,7 +158,7 @@ export async function rejectWorkOrder(orderId: string, actor: Actor & { uid: str
     if (order.status !== "Work Order Created and Assigned" || order.needsReassignment) throw new Error("This work order is no longer awaiting your decision.");
     transaction.update(orderRef, { needsReassignment: true, updated: "Just now" });
     transaction.set(auditRef, auditEntry(actor, "Rejected work order", orderId));
-    transaction.set(noticeRef, { text: `${orderId} was declined by ${actor.name} and needs reassignment`, time: "Just now", read: false, staffOnly: true, workOrderId: orderId, createdAt: serverTimestamp() });
+    transaction.set(noticeRef, { text: `${orderId} was declined by ${actor.name}${reason ? `: "${reason}"` : ""} and needs reassignment`, time: "Just now", read: false, staffOnly: true, workOrderId: orderId, createdAt: serverTimestamp() });
   });
 }
 

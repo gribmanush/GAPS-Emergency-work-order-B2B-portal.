@@ -20,10 +20,11 @@ export function WorkOrderReviewModal({
   vets: VetDirectoryEntry[];
   onClose: () => void;
   onAccept: () => void;
-  onReject: () => void;
+  onReject: (reason?: string) => void;
   onReassign: (vetUid: string) => void;
 }) {
   const [pickedVet, setPickedVet] = useState("");
+  const [rejectReason, setRejectReason] = useState("");
   const isAssignedVet = role === "Veterinary Practice" && order.assignedVetUid === sessionUid;
   const awaitingThisVetsDecision = isAssignedVet && !order.needsReassignment && order.status === "Work Order Created and Assigned";
   const isGapStaff = role === "GAP Administrator" || role === "GAP Case Manager";
@@ -48,6 +49,10 @@ export function WorkOrderReviewModal({
         </dl>
         <h3>Instructions</h3><p>{order.notes || "No additional instructions."}</p>
 
+        {awaitingThisVetsDecision ? <label className="full">Reason for declining (optional)
+          <textarea value={rejectReason} onChange={e => setRejectReason(e.target.value)} placeholder="Let GAP staff know why this work order can't be accepted…" rows={3} />
+        </label> : null}
+
         {needsReassignment ? <label className="full">Assign to a different vet
           <select value={pickedVet} onChange={e => setPickedVet(e.target.value)} disabled={!reassignCandidates.length}>
             <option value="">{reassignCandidates.length ? "Select a registered vet" : "No other registered vets available"}</option>
@@ -57,7 +62,7 @@ export function WorkOrderReviewModal({
       </div>
       <div className="modal-actions">
         {awaitingThisVetsDecision ? <>
-          <button type="button" className="danger-button" onClick={onReject}>Reject work</button>
+          <button type="button" className="danger-button" onClick={() => onReject(rejectReason.trim() || undefined)}>Reject work</button>
           <button type="button" className="primary" onClick={onAccept}>Accept work</button>
         </> : needsReassignment ? <>
           <button type="button" className="secondary" onClick={onClose}>Cancel</button>
