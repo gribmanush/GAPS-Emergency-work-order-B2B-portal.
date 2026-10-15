@@ -269,7 +269,12 @@ export default function PortalApp() {
       }
       if (modal === "practice") {
         const name = String(data.tradingName || data.legalName);
-        await registerPractice({ id: name, name, approval: "Pending", operations: "Inactive", coverage: String(data.coverage), supplierRef: "Not mapped", avgResponse: "—" }, actor);
+        await registerPractice({
+          id: name, name, approval: "Pending", operations: "Inactive", coverage: String(data.coverage),
+          supplierRef: "Not mapped", avgResponse: "—",
+          legalName: String(data.legalName || ""), abn: String(data.abn || ""),
+          email: String(data.email || ""), phone: String(data.phone || ""),
+        }, actor);
       }
       setModal(null); setToast("Saved successfully");
     } catch (err) { setToast(err instanceof Error ? err.message : "Could not save this record."); }

@@ -143,6 +143,9 @@ export type Greyhound = {
 export type Practice = {
   id: string; // document id — the practice name, since that's the key used everywhere else
   name: string; approval: string; operations: string; coverage: string; supplierRef: string; avgResponse: string;
+  // Captured at registration time but previously discarded before saving —
+  // now persisted so the full practice record is actually stored and visible.
+  legalName?: string; abn?: string; email?: string; phone?: string;
 };
 
 export type MedicalRecord = {
@@ -171,7 +174,10 @@ export function canManageGreyhoundRecords(session: Pick<UserProfile, "role">, pe
 // storage layer underneath is fully typed Firestore documents.
 export const incidentToRow = (i: Incident): string[] => [i.id, i.occurredAt, i.type, i.location, String(i.greyhoundCount), i.priority, i.status];
 export const greyhoundToRow = (g: Greyhound): string[] => [g.id, g.petName, g.racingName, g.microchip, g.status, g.healthAlerts];
-export const practiceToRow = (p: Practice): string[] => [p.name, p.approval, p.operations, p.coverage, p.supplierRef, p.avgResponse];
+export const practiceToRow = (p: Practice): string[] => [
+  p.name, p.approval, p.operations, p.coverage, p.supplierRef, p.avgResponse,
+  p.abn || "—", [p.email, p.phone].filter(Boolean).join(" · ") || "—",
+];
 
 // One top-level Firestore collection per data domain — every operational
 // record is genuine, shared, cross-browser Firestore data, not local state.

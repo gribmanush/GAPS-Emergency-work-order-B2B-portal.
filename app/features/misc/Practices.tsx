@@ -5,7 +5,7 @@ import { PageHead } from "../../shared/PageHead";
 import { downloadCsv } from "../../shared/csv";
 import { badge, Practice, practiceToRow, Role } from "../../shared/types";
 
-const heads = ["Practice", "Approval", "Operations", "Coverage", "Supplier reference", "Avg. response"];
+const heads = ["Practice", "Approval", "Operations", "Coverage", "Supplier reference", "Avg. response", "ABN", "Contact"];
 
 export function Practices({ practices, role, setModal, onApprove }: { practices: Practice[]; role: Role; setModal: (m: string) => void; onApprove: (id: string) => void }) {
   const [q, setQ] = useState("");
@@ -29,6 +29,8 @@ export function Practices({ practices, role, setModal, onApprove }: { practices:
             <td>{p.coverage}</td>
             <td>{p.supplierRef}</td>
             <td>{p.avgResponse}</td>
+            <td>{p.abn || "—"}</td>
+            <td>{[p.email, p.phone].filter(Boolean).join(" · ") || "—"}</td>
             {isAdmin ? <td>{pending ? <button onClick={() => onApprove(p.id)}>Approve &amp; activate</button> : <span className="table-link">Approved</span>}</td> : null}
           </tr>;
         })}</tbody>
