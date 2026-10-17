@@ -6,7 +6,7 @@
 
 import { FormEvent, useState } from "react";
 import { PASSWORD_REQUIREMENTS, signOutUser } from "../../contributions/ankita-auth";
-import { vetSpecialties } from "../../shared/types";
+import { Role, roles, vetSpecialties } from "../../shared/types";
 
 export function Auth({
   screen, setScreen, login, signup, forgotPassword, toast, practices,
@@ -47,6 +47,15 @@ export function Auth({
       <div className="success-icon">!</div>
       <h2>Account not set up</h2>
       <p>Your account hasn&rsquo;t been fully set up yet. Contact a GAP Administrator to finish setting up your access.</p>
+      <button className="primary" onClick={() => signOutUser()}>Sign out</button>
+    </div>
+  </main>;
+
+  if (screen === "account-rejected") return <main className="auth-page">
+    <div className="auth-card success-card">
+      <div className="success-icon">!</div>
+      <h2>Account access declined</h2>
+      <p>Your account access has been declined by a GAP Administrator. Contact them if you believe this is a mistake.</p>
       <button className="primary" onClick={() => signOutUser()}>Sign out</button>
     </div>
   </main>;
@@ -98,15 +107,18 @@ export function Auth({
 }
 
 function SignupForm({ onSubmit, practices }: { onSubmit: (e: FormEvent<HTMLFormElement>) => void; practices: string[][] }) {
-  // Sign-up is self-service for Veterinary Practice accounts only — every
-  // other role (GAP Administrator, GAP Case Manager, Finance Approver,
-  // GRNSW Auditor) must be provisioned by an existing GAP Administrator.
+  // Every role can self-register again. A new account works immediately
+  // (see reviewStatus in shared/types.ts) but is listed in the GAP
+  // Administrator's Account Approvals tab for after-the-fact review, and can
+  // be rejected (revoking access) if it shouldn't exist.
+  const [role, setRole] = useState<Role>("Veterinary Practice");
+  const isVet = role === "Veterinary Practice";
   const activePractices = practices.filter(p => p[1] === "Approved" && p[2] === "Active");
 
   return <form className="form-grid" onSubmit={onSubmit}>
     <label className="full">Account type
-      <select name="role" defaultValue="Veterinary Practice">
-        <option>Veterinary Practice</option>
+      <select name="role" value={role} onChange={e => setRole(e.target.value as Role)}>
+        {roles.map(r => <option key={r}>{r}</option>)}
       </select>
     </label>
     <label>First name<input name="firstName" required /></label>
@@ -114,16 +126,21 @@ function SignupForm({ onSubmit, practices }: { onSubmit: (e: FormEvent<HTMLFormE
     <label className="full">Email address<input name="email" type="email" required placeholder="name@organisation.nsw" /></label>
     <label>Phone number<input name="phone" type="tel" required /></label>
 
-    <label className="full">Veterinary practice<small>Which registered practice you work at. Only this practice&rsquo;s assigned work orders will be visible to you.</small>
-      <select name="practice" required disabled={!activePractices.length}>
-        <option value="">{activePractices.length ? "Select your practice" : "No approved practices available yet"}</option>
-        {activePractices.map(p => <option key={p[0]}>{p[0]}</option>)}
-      </select>
-    </label>
-    <label className="full">Veterinary licence / registration number<small>The official ID issued by your state or national veterinary board.</small><input name="licenseNumber" required /></label>
-    <label>Specialty / primary focus<select name="specialty">{vetSpecialties.map(s => <option key={s}>{s}</option>)}</select></label>
-    <label>DEA / controlled substances licence number<small>Optional</small><input name="deaNumber" /></label>
-    <label className="full">Emergency contact details<small>For after-hours on-call emergencies.</small><input name="emergencyContact" required placeholder="Name and phone number" /></label>
+    {isVet ? <>
+      <label className="full">Veterinary practice<small>Which registered practice you work at. Only this practice&rsquo;s assigned work orders will be visible to you.</small>
+        <select name="practice" required disabled={!activePractices.length}>
+          <option value="">{activePractices.length ? "Select your practice" : "No approved practices available yet"}</option>
+          {activePractices.map(p => <option key={p[0]}>{p[0]}</option>)}
+        </select>
+      </label>
+      <label className="full">Veterinary licence / registration number<small>The official ID issued by your state or national veterinary board.</small><input name="licenseNumber" required /></label>
+      <label>Specialty / primary focus<select name="specialty">{vetSpecialties.map(s => <option key={s}>{s}</option>)}</select></label>
+      <label>DEA / controlled substances licence number<small>Optional</small><input name="deaNumber" /></label>
+      <label className="full">Emergency contact details<small>For after-hours on-call emergencies.</small><input name="emergencyContact" required placeholder="Name and phone number" /></label>
+    </> : <>
+      <label>Employee / payroll ID number<input name="employeeId" required /></label>
+      <label className="full">Assigned location / branch<input name="branch" required placeholder="e.g. Head office, Sydney" /></label>
+    </>}
 
     <PasswordField label="Password" name="password" autoComplete="new-password" hint={PASSWORD_REQUIREMENTS} />
     <PasswordField label="Confirm password" name="confirmPassword" autoComplete="new-password" />
