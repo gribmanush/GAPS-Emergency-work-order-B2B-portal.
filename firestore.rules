@@ -17,6 +17,14 @@ service cloud.firestore {
     function isAuditor() { return isInRole('grnswAuditors'); }
     function isVet() { return isInRole('veterinaryPractices'); }
     function isGapStaff() { return isGapAdmin() || isGapCaseManager() || isFinanceApprover() || isAuditor(); }
+    // A Pending GAP Administrator (one whose own account hasn't been approved
+    // yet) keeps every other admin privilege, but must not be able to approve
+    // or reject anyone — including themselves — until an already-approved
+    // admin reviews them first. Everywhere else in these rules, a Pending
+    // admin is still a full isGapAdmin().
+    function isFullyApprovedAdmin() {
+      return isGapAdmin() && get(/databases/$(database)/documents/gapAdministrators/$(request.auth.uid)).data.reviewStatus != 'Pending';
+    }
     function myPractice() {
       return get(/databases/$(database)/documents/veterinaryPractices/$(request.auth.uid)).data.practice;
     }
@@ -31,32 +39,32 @@ service cloud.firestore {
     match /gapAdministrators/{uid} {
       allow read: if signedIn() && (request.auth.uid == uid || isGapAdmin());
       allow create: if signedIn() && request.auth.uid == uid && request.resource.data.reviewStatus == 'Pending';
-      allow update: if (signedIn() && request.auth.uid == uid && request.resource.data.reviewStatus == resource.data.reviewStatus) || isGapAdmin();
+      allow update: if (signedIn() && request.auth.uid == uid && request.resource.data.reviewStatus == resource.data.reviewStatus) || isFullyApprovedAdmin();
       allow delete: if false;
     }
     match /gapCaseManagers/{uid} {
       allow read: if signedIn() && (request.auth.uid == uid || isGapAdmin());
       allow create: if signedIn() && request.auth.uid == uid && request.resource.data.reviewStatus == 'Pending';
-      allow update: if (signedIn() && request.auth.uid == uid && request.resource.data.reviewStatus == resource.data.reviewStatus) || isGapAdmin();
+      allow update: if (signedIn() && request.auth.uid == uid && request.resource.data.reviewStatus == resource.data.reviewStatus) || isFullyApprovedAdmin();
       allow delete: if false;
     }
     match /financeApprovers/{uid} {
       allow read: if signedIn() && (request.auth.uid == uid || isGapAdmin());
       allow create: if signedIn() && request.auth.uid == uid && request.resource.data.reviewStatus == 'Pending';
-      allow update: if (signedIn() && request.auth.uid == uid && request.resource.data.reviewStatus == resource.data.reviewStatus) || isGapAdmin();
+      allow update: if (signedIn() && request.auth.uid == uid && request.resource.data.reviewStatus == resource.data.reviewStatus) || isFullyApprovedAdmin();
       allow delete: if false;
     }
     match /grnswAuditors/{uid} {
       allow read: if signedIn() && (request.auth.uid == uid || isGapAdmin());
       allow create: if signedIn() && request.auth.uid == uid && request.resource.data.reviewStatus == 'Pending';
-      allow update: if (signedIn() && request.auth.uid == uid && request.resource.data.reviewStatus == resource.data.reviewStatus) || isGapAdmin();
+      allow update: if (signedIn() && request.auth.uid == uid && request.resource.data.reviewStatus == resource.data.reviewStatus) || isFullyApprovedAdmin();
       allow delete: if false;
     }
     match /veterinaryPractices/{uid} {
       // GAP staff also need to list every vet, to assign/reassign work orders to one.
       allow read: if signedIn() && (request.auth.uid == uid || isGapStaff());
       allow create: if signedIn() && request.auth.uid == uid && request.resource.data.reviewStatus == 'Pending';
-      allow update: if (signedIn() && request.auth.uid == uid && request.resource.data.reviewStatus == resource.data.reviewStatus) || isGapAdmin();
+      allow update: if (signedIn() && request.auth.uid == uid && request.resource.data.reviewStatus == resource.data.reviewStatus) || isFullyApprovedAdmin();
       allow delete: if false;
     }
 

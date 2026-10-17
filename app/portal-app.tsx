@@ -47,7 +47,7 @@ import { subscribeGreyhoundDocuments, uploadGreyhoundDocument } from "./lib/repo
 import { buildEmergencyCase } from "./contributions/aanay-sprint5";
 import { sendEmailNotification, type EmailNotification } from "./lib/email-notifications";
 import { AccountEntry, setAccountReviewStatus, subscribeAllAccounts } from "./lib/repositories/accounts";
-import { AccountsApproval } from "./features/misc/AccountsApproval";
+import { AccountsApproval, PendingAdminNotice } from "./features/misc/AccountsApproval";
 
 function canViewTab(role: Role, tabId: string) {
   return !restricted[tabId] || restricted[tabId].includes(role);
@@ -188,6 +188,10 @@ export default function PortalApp() {
   // they're treating, never adds/overwrites directory entries.
   const canManageGreyhoundDirectory = session?.role === "GAP Administrator" || session?.role === "GAP Case Manager";
   const actor = session ? { name: session.fullName, role: session.role } : null;
+  // A GAP Administrator whose own account is still Pending can use the rest
+  // of the app normally, but can't review/approve anyone yet (not even
+  // themselves) — see firestore.rules' isFullyApprovedAdmin().
+  const isPendingAdmin = session?.role === "GAP Administrator" && session.reviewStatus === "Pending";
 
   async function login(e: FormEvent<HTMLFormElement>) {
     e.preventDefault(); const fd = new FormData(e.currentTarget);
@@ -411,7 +415,8 @@ export default function PortalApp() {
         {route === "notifications" && <Notifications notices={visibleNotices} onMarkRead={markNotificationRead} onMarkAll={() => markAllNotificationsRead(session, notices)} onOpenWorkOrder={setReviewOrderId} onOpenInvoice={setViewInvoiceId} />}
         {route === "reports" && <Reports orders={orders} invoices={invoices} practices={practices} />}
         {route === "audit" && <AuditLog rows={audits} />}
-        {route === "accounts-approval" && <AccountsApproval accounts={accounts} onApprove={async account => {
+        {route === "accounts-approval" && isPendingAdmin && <PendingAdminNotice approvers={accounts.filter(a => a.role === "GAP Administrator" && a.reviewStatus === "Approved")} />}
+        {route === "accounts-approval" && !isPendingAdmin && <AccountsApproval accounts={accounts} onApprove={async account => {
           if (!actor) return;
           try { await setAccountReviewStatus(account.role, account.uid, "Approved", actor); setToast(`${account.fullName}'s account approved`); }
           catch (err) { setToast(err instanceof Error ? err.message : "Could not approve this account."); }
