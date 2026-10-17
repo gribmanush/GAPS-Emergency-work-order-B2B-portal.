@@ -39,3 +39,23 @@ export function AccountsApproval({
     </div>
   </>;
 }
+
+// Shown instead of the table above to a GAP Administrator whose own account is
+// still Pending — they can use the rest of the app normally, but can't review
+// or approve anyone (including themselves) until an already-approved
+// Administrator reviews their account first.
+export function PendingAdminNotice({ approvers }: { approvers: AccountEntry[] }) {
+  return <>
+    <PageHead title="Account approvals" subtitle="Your account is still pending review" />
+    <div className="table-card">
+      <div className="empty">
+        <b>Your account status is pending</b>
+        <span>Ask an existing GAP Administrator to approve your account. Until then, you can use the portal normally, but you can&rsquo;t review or approve other accounts.</span>
+      </div>
+      {approvers.length ? <table>
+        <thead><tr><th>Administrators who can approve your account</th><th>Email</th></tr></thead>
+        <tbody>{approvers.map(a => <tr key={a.uid}><td><b>{a.fullName}</b></td><td>{a.email}</td></tr>)}</tbody>
+      </table> : <div className="empty"><b>No approved GAP Administrator found</b><span>Contact your organisation directly to have your account approved.</span></div>}
+    </div>
+  </>;
+}
