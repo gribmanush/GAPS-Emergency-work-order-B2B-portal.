@@ -5,7 +5,8 @@ export type EmailEvent =
   | "work_order_rejected"
   | "work_order_status_updated"
   | "invoice_submitted"
-  | "invoice_reviewed";
+  | "invoice_reviewed"
+  | "account_created";
 
 export interface EmailEnv {
   RESEND_API_KEY?: string;
@@ -30,7 +31,7 @@ type EmailRequest = {
 
 const allowedEvents = new Set<EmailEvent>([
   "work_order_assigned", "work_order_reassigned", "work_order_accepted",
-  "work_order_rejected", "work_order_status_updated", "invoice_submitted", "invoice_reviewed",
+  "work_order_rejected", "work_order_status_updated", "invoice_submitted", "invoice_reviewed", "account_created",
 ]);
 
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), {
@@ -107,6 +108,10 @@ function messageFor(input: EmailRequest) {
     work_order_status_updated: { subject: `${id} status updated`, heading: "Work order status changed", detail: `${id} is now ${status || "updated"}.`, audience: "gap" },
     invoice_submitted: { subject: `Invoice ${id} submitted`, heading: "A veterinary invoice is ready for review", detail: `${id}${practice ? ` from ${practice}` : ""} has been submitted for GAP finance review.`, audience: "gap" },
     invoice_reviewed: { subject: `Invoice ${id}: ${status || "reviewed"}`, heading: "Your invoice has been reviewed", detail: `${id} is now ${status || "reviewed"}. Sign in to view the decision and audit trail.`, audience: "recipient" },
+    // recordId carries "Full Name (email)" here (not an id in the usual
+    // sense) and status carries the role - same generic 4-field request
+    // shape every other event already uses, no new fields needed.
+    account_created: { subject: `New ${status || "account"} signed up`, heading: "A new account is ready for review", detail: `${id} registered as ${status || "a new account"}. Review it in Account Approvals.`, audience: "gap" },
   };
   return messages[input.event];
 }

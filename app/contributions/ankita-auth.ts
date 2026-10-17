@@ -18,6 +18,7 @@ import {
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { auth, db } from "../lib/firebase";
 import { accounts, ROLE_COLLECTIONS, UserProfile } from "../shared/types";
+import { writeAuditEntry, pushNotification } from "../lib/repositories/shared";
 
 export const PASSWORD_REQUIREMENTS =
   "At least 8 characters, with an uppercase letter, a lowercase letter, a number and a symbol.";
@@ -70,8 +71,15 @@ export async function signUp(profile: Omit<UserProfile, "uid">, password: string
   await setPersistence(auth, browserLocalPersistence);
   const credential = await createUserWithEmailAndPassword(auth, profile.email.trim().toLowerCase(), password);
   await updateProfile(credential.user, { displayName: profile.fullName });
-  const fullProfile: UserProfile = { ...profile, email: profile.email.trim().toLowerCase(), uid: credential.user.uid };
+  const fullProfile: UserProfile = {
+    ...profile, email: profile.email.trim().toLowerCase(), uid: credential.user.uid, reviewStatus: "Pending",
+  };
   await setDoc(doc(db, ROLE_COLLECTIONS[fullProfile.role], credential.user.uid), fullProfile);
+  // The account is fully usable immediately (see reviewStatus in shared/types.ts) -
+  // this is just a heads-up for GAP staff to review it in Account Approvals.
+  const actor = { name: fullProfile.fullName, role: fullProfile.role };
+  await writeAuditEntry(actor, "Created account (pending review)", fullProfile.email);
+  await pushNotification(`New ${fullProfile.role} account created: ${fullProfile.fullName} (${fullProfile.email})`, { staffOnly: true });
   return fullProfile;
 }
 
