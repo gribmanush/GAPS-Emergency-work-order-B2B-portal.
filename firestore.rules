@@ -4,7 +4,12 @@ service cloud.firestore {
     function signedIn() { return request.auth != null; }
 
     function isInRole(collectionName) {
-      return signedIn() && exists(/databases/$(database)/documents/$(collectionName)/$(request.auth.uid));
+      // A GAP Administrator rejecting an account (see reviewStatus in
+      // shared/types.ts) must actually revoke every permission that role ever
+      // granted, not just block the client's own sign-in screen — so every
+      // rule built on isInRole/isGapAdmin/isVet/etc. re-checks it here too.
+      return signedIn() && exists(/databases/$(database)/documents/$(collectionName)/$(request.auth.uid))
+        && get(/databases/$(database)/documents/$(collectionName)/$(request.auth.uid)).data.reviewStatus != 'Rejected';
     }
     function isGapAdmin() { return isInRole('gapAdministrators'); }
     function isGapCaseManager() { return isInRole('gapCaseManagers'); }
@@ -12,36 +17,54 @@ service cloud.firestore {
     function isAuditor() { return isInRole('grnswAuditors'); }
     function isVet() { return isInRole('veterinaryPractices'); }
     function isGapStaff() { return isGapAdmin() || isGapCaseManager() || isFinanceApprover() || isAuditor(); }
+    // A Pending GAP Administrator (one whose own account hasn't been approved
+    // yet) keeps every other admin privilege, but must not be able to approve
+    // or reject anyone — including themselves — until an already-approved
+    // admin reviews them first. Everywhere else in these rules, a Pending
+    // admin is still a full isGapAdmin().
+    function isFullyApprovedAdmin() {
+      return isGapAdmin() && get(/databases/$(database)/documents/gapAdministrators/$(request.auth.uid)).data.reviewStatus != 'Pending';
+    }
     function myPractice() {
       return get(/databases/$(database)/documents/veterinaryPractices/$(request.auth.uid)).data.practice;
     }
 
     // ---- Role profiles: one collection per role, each account owns exactly
     // one document across all five, keyed by their own uid. ----
+    // Self-service sign-up for every role (see reviewStatus in
+    // shared/types.ts): a new account always starts 'Pending' and is usable
+    // immediately; only a GAP Administrator can ever change reviewStatus
+    // afterward (approve/reject from Account Approvals), never the account
+    // owner themselves.
     match /gapAdministrators/{uid} {
-      allow read, update: if signedIn() && request.auth.uid == uid;
-      allow create: if isGapAdmin();
+      allow read: if signedIn() && (request.auth.uid == uid || isGapAdmin());
+      allow create: if signedIn() && request.auth.uid == uid && request.resource.data.reviewStatus == 'Pending';
+      allow update: if (signedIn() && request.auth.uid == uid && request.resource.data.reviewStatus == resource.data.reviewStatus) || isFullyApprovedAdmin();
       allow delete: if false;
     }
     match /gapCaseManagers/{uid} {
-      allow read, update: if signedIn() && request.auth.uid == uid;
-      allow create: if isGapAdmin();
+      allow read: if signedIn() && (request.auth.uid == uid || isGapAdmin());
+      allow create: if signedIn() && request.auth.uid == uid && request.resource.data.reviewStatus == 'Pending';
+      allow update: if (signedIn() && request.auth.uid == uid && request.resource.data.reviewStatus == resource.data.reviewStatus) || isFullyApprovedAdmin();
       allow delete: if false;
     }
     match /financeApprovers/{uid} {
-      allow read, update: if signedIn() && request.auth.uid == uid;
-      allow create: if isGapAdmin();
+      allow read: if signedIn() && (request.auth.uid == uid || isGapAdmin());
+      allow create: if signedIn() && request.auth.uid == uid && request.resource.data.reviewStatus == 'Pending';
+      allow update: if (signedIn() && request.auth.uid == uid && request.resource.data.reviewStatus == resource.data.reviewStatus) || isFullyApprovedAdmin();
       allow delete: if false;
     }
     match /grnswAuditors/{uid} {
-      allow read, update: if signedIn() && request.auth.uid == uid;
-      allow create: if isGapAdmin();
+      allow read: if signedIn() && (request.auth.uid == uid || isGapAdmin());
+      allow create: if signedIn() && request.auth.uid == uid && request.resource.data.reviewStatus == 'Pending';
+      allow update: if (signedIn() && request.auth.uid == uid && request.resource.data.reviewStatus == resource.data.reviewStatus) || isFullyApprovedAdmin();
       allow delete: if false;
     }
     match /veterinaryPractices/{uid} {
       // GAP staff also need to list every vet, to assign/reassign work orders to one.
       allow read: if signedIn() && (request.auth.uid == uid || isGapStaff());
-      allow create, update: if signedIn() && request.auth.uid == uid;
+      allow create: if signedIn() && request.auth.uid == uid && request.resource.data.reviewStatus == 'Pending';
+      allow update: if (signedIn() && request.auth.uid == uid && request.resource.data.reviewStatus == resource.data.reviewStatus) || isFullyApprovedAdmin();
       allow delete: if false;
     }
 

@@ -46,6 +46,8 @@ import { saveMedicalRecord, subscribeMedicalRecords } from "./lib/repositories/m
 import { subscribeGreyhoundDocuments, uploadGreyhoundDocument } from "./lib/repositories/greyhound-documents";
 import { buildEmergencyCase } from "./contributions/aanay-sprint5";
 import { sendEmailNotification, type EmailNotification } from "./lib/email-notifications";
+import { AccountEntry, setAccountReviewStatus, subscribeAllAccounts } from "./lib/repositories/accounts";
+import { AccountsApproval, PendingAdminNotice } from "./features/misc/AccountsApproval";
 
 function canViewTab(role: Role, tabId: string) {
   return !restricted[tabId] || restricted[tabId].includes(role);
@@ -64,6 +66,7 @@ export default function PortalApp() {
   const [practices, setPractices] = useState<Practice[]>([]);
   const [notices, setNotices] = useState<Notice[]>([]);
   const [audits, setAudits] = useState<Audit[]>([]);
+  const [accounts, setAccounts] = useState<AccountEntry[]>([]);
   const [vets, setVets] = useState<VetDirectoryEntry[]>([]);
   const [search, setSearch] = useState("");
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
@@ -83,6 +86,11 @@ export default function PortalApp() {
         // directly in the Firebase console) — fail closed, never grant a
         // fabricated session.
         setSession(null); setScreen("account-not-set-up"); return;
+      }
+      if (profile.reviewStatus === "Rejected") {
+        // A GAP Administrator has revoked this account after the fact — block
+        // access on next sign-in (an already-open session isn't force-ended).
+        setSession(null); setScreen("account-rejected"); return;
       }
       setSession(profile); setScreen("app"); setRoute("dashboard");
       // onAuthStateChanged can re-fire for the same signed-in user (e.g. a
@@ -165,6 +173,13 @@ export default function PortalApp() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session?.uid, session?.role]);
 
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (!session || !canViewTab(session.role, "accounts-approval")) { setAccounts([]); return; }
+    return subscribeAllAccounts(setAccounts, message => setToast(message));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session?.uid, session?.role]);
+
   useEffect(() => { if (toast) { const t = setTimeout(() => setToast(""), 3200); return () => clearTimeout(t); } }, [toast]);
 
   const isReadOnly = session?.role === "GRNSW Auditor";
@@ -173,6 +188,10 @@ export default function PortalApp() {
   // they're treating, never adds/overwrites directory entries.
   const canManageGreyhoundDirectory = session?.role === "GAP Administrator" || session?.role === "GAP Case Manager";
   const actor = session ? { name: session.fullName, role: session.role } : null;
+  // A GAP Administrator whose own account is still Pending can use the rest
+  // of the app normally, but can't review/approve anyone yet (not even
+  // themselves) — see firestore.rules' isFullyApprovedAdmin().
+  const isPendingAdmin = session?.role === "GAP Administrator" && session.reviewStatus === "Pending";
 
   async function login(e: FormEvent<HTMLFormElement>) {
     e.preventDefault(); const fd = new FormData(e.currentTarget);
@@ -202,7 +221,12 @@ export default function PortalApp() {
     } else {
       profileData = { ...base, employeeId: String(fd.get("employeeId")), branch: String(fd.get("branch")) };
     }
-    try { await signUp(profileData, password); }
+    try {
+      await signUp(profileData, password);
+      // Best-effort: the account already exists and is usable either way —
+      // this is just the GAP-staff heads-up to go review it.
+      sendEmailNotification({ event: "account_created", recordId: `${profileData.fullName} (${profileData.email})`, status: profileData.role }).catch(() => {});
+    }
     catch (err) { setToast(friendlyAuthError(err)); }
   }
   async function forgotPassword(e: FormEvent<HTMLFormElement>) {
@@ -391,6 +415,16 @@ export default function PortalApp() {
         {route === "notifications" && <Notifications notices={visibleNotices} onMarkRead={markNotificationRead} onMarkAll={() => markAllNotificationsRead(session, notices)} onOpenWorkOrder={setReviewOrderId} onOpenInvoice={setViewInvoiceId} />}
         {route === "reports" && <Reports orders={orders} invoices={invoices} practices={practices} />}
         {route === "audit" && <AuditLog rows={audits} />}
+        {route === "accounts-approval" && isPendingAdmin && <PendingAdminNotice approvers={accounts.filter(a => a.role === "GAP Administrator" && a.reviewStatus === "Approved")} />}
+        {route === "accounts-approval" && !isPendingAdmin && <AccountsApproval accounts={accounts} onApprove={async account => {
+          if (!actor) return;
+          try { await setAccountReviewStatus(account.role, account.uid, "Approved", actor); setToast(`${account.fullName}'s account approved`); }
+          catch (err) { setToast(err instanceof Error ? err.message : "Could not approve this account."); }
+        }} onReject={async account => {
+          if (!actor) return;
+          try { await setAccountReviewStatus(account.role, account.uid, "Rejected", actor); setToast(`${account.fullName}'s account access revoked`); }
+          catch (err) { setToast(err instanceof Error ? err.message : "Could not reject this account."); }
+        }} />}
         {route === "settings" && <Settings />}
         {route === "help" && <Help setToast={setToast} />}
       </main>

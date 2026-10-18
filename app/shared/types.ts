@@ -24,6 +24,13 @@ export type UserProfile = {
   // Every other role (GAP staff)
   employeeId?: string;
   branch?: string;
+  // Set to "Pending" at sign-up; a GAP Administrator can later flip it to
+  // "Approved" or "Rejected" from the Account Approvals tab. "Pending" and
+  // "Approved" (and an absent value, for accounts created before this field
+  // existed) all behave identically for access — only "Rejected" actually
+  // blocks sign-in. Only a GAP Administrator can ever change this value
+  // (enforced in firestore.rules), never the account owner themselves.
+  reviewStatus?: "Pending" | "Approved" | "Rejected";
 };
 
 // The real, final work order lifecycle. A work order can only ever move to the
@@ -231,6 +238,7 @@ export const nav = [
   ["work-order-pool","▣","Work Order Pool"],
   ["greyhounds","◇","Greyhounds"], ["practices","✚","Veterinary Practices"], ["invoices","$","Invoices"],
   ["notifications","●","Notifications"], ["reports","▥","Reports"], ["audit","◷","Audit Log"],
+  ["accounts-approval","✓","Account Approvals"],
   ["settings","⚙","Settings"], ["help","?","Help & Support"],
 ];
 
@@ -239,6 +247,7 @@ export const restricted: Record<string, Role[]> = {
   reports:["GAP Administrator","GAP Case Manager","Finance Approver","GRNSW Auditor"],
   practices:["GAP Administrator","GAP Case Manager","GRNSW Auditor"], incidents:["GAP Administrator","GAP Case Manager","GRNSW Auditor"],
   "work-order-pool":["GAP Administrator","GAP Case Manager","Veterinary Practice"],
+  "accounts-approval":["GAP Administrator"],
 };
 
 export const money = (n:number) => new Intl.NumberFormat("en-AU",{style:"currency",currency:"AUD"}).format(n);
